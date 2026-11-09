@@ -104,9 +104,8 @@ def test_api_health_and_check():
     assert res.json()["verdict"] in {"SHIP", "FIX-FIRST"}
 
 
-def test_generate_without_key_is_honest():
+def test_generate_without_key_refuses():
+    """No key must be an explicit 409, never an invented design."""
     res = client.post("/api/generate", json={"prompt": "a journaling app", "model": "anthropic/claude-sonnet-4"})
-    assert res.status_code == 200
-    body = res.json()
-    assert body["provider"] in {"offline", "openrouter", "anthropic", "openai"}
-    assert body["answer"]
+    assert res.status_code == 409
+    assert "No API key" in res.json()["detail"]

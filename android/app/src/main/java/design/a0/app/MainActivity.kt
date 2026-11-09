@@ -49,7 +49,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             val vm: AppViewModel = viewModel()
-            A0Theme(system = vm.ds) {
+            A0Theme {
                 AppRoot(vm)
             }
         }

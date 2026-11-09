@@ -8,10 +8,10 @@ Compose counterpart. Nothing was dropped.
 | `#chat` — hero mascot, greeting bubble, suggestions, feed, composer | `ui/screens/ChatScreen.kt` |
 | feed item types (`u`, `a`, `.st` steps, `.qb` plan, ready card) | `ChatScreen.kt` + `vm/AppViewModel.kt` (`FeedKind`) |
 | `#prev` — top bar, device/edit segmented, `#pv` | `ui/screens/PreviewScreen.kt` |
-| `.dev` device frame + `home / brew / shop` screens | `ui/preview/DevicePreview.kt` |
+| `.dev` device frame + screens | `ui/preview/SpecPreview.kt` (renders the generated spec) |
 | `#p-canvas` — frames, zoom, variants | `PreviewScreen.kt` → `CanvasPane` |
 | `#p-code` — Compose / React / HTML | `PreviewScreen.kt` → `CodePane` |
-| `#p-ds` — accent, typeface, roundness, mode, fidelity | `PreviewScreen.kt` → `StylePane` |
+| `#p-ds` — accent, typeface, roundness | `PreviewScreen.kt` → `StylePane` (edits real tokens) |
 | `#p-hist` — compare / restore | `PreviewScreen.kt` → `HistoryPane` |
 | `#ftb` element toolbar + annotation | `PreviewScreen.kt` → `ElementToolbar` |
 | `#prj` projects | `ui/screens/LibraryScreens.kt` → `ProjectsScreen` |

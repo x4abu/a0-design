@@ -170,25 +170,22 @@ async def generate(req: GenerateRequest, request: Request) -> dict:
         req.prompt, req.platform, req.theme, req.screens, req.system_prompt
     )
     system = (
-        prompts.MASTER_TEMPLATE.format(
-            prompt="(see the assembled context)",
-            platform=req.platform,
-            theme=req.theme,
-        )
-        + "\n"
+        prompts.SPEC_CONTRACT
+        + "\n\n"
         + prompts.recipe_for(req.platform)
+        + "\n\nThe design rules below are binding; the JSON contract above wins on format.\n"
     )
 
     result = await providers.complete(system, context, req.model, user_key)
     if result is None:
-        # No key on the server: answer honestly with the deterministic plan.
-        return {
-            "answer": prompts.local_design_plan(req.prompt, req.platform, req.theme),
-            "provider": "offline",
-            "model": None,
-            "mode": req.mode,
-            "antislop": audit(req.design_spec).model_dump() if req.design_spec else None,
-        }
+        # No key anywhere: say so plainly. The server never fabricates a design.
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "No API key. Send your provider key as 'Authorization: Bearer <key>' "
+                "or set OPENROUTER_API_KEY / OPENAI_API_KEY / ANTHROPIC_API_KEY on the server."
+            ),
+        )
 
     payload = {
         "answer": result.text,

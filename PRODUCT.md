@@ -25,9 +25,12 @@ is shown. Failures are named, not smoothed over.
 5. Compare or restore any earlier version in History.
 
 **Constraints we hold.**
-- Bring your own model key. Keys stay on the device; nothing is proxied without consent.
-- Honest states: when the backend is unreachable the app says so and keeps working
-  offline; when the server has no key it returns a real design plan, not fake output.
+- Bring your own model key. It is verified with the provider, then encrypted into the
+  Android Keystore; nothing is proxied without consent.
+- No seeded content. Projects, usage and history are empty until you actually generate
+  something, and every number on screen came from a real API response.
+- Honest failure: no key, a 401, a rate limit or unreadable JSON are all shown verbatim
+  with the action that fixes them. The app never substitutes a demo design.
 - Tokens only. No hex, radius or duration exists outside `Tokens.kt`.
 - Android-native: Material 3 shapes, 48dp targets, thumb-zone primary actions.
 

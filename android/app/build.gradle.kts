@@ -14,8 +14,8 @@ android {
         applicationId = "design.a0.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
         vectorDrawables { useSupportLibrary = true }
         // Point this at your deployed backend. Empty = app runs fully offline
         // (local design engine) and only uses the backend when reachable.

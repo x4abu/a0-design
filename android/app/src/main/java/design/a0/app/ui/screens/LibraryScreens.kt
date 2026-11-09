@@ -20,15 +20,20 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import design.a0.app.data.Content
+import design.a0.app.data.UsageEntry
 import design.a0.app.ui.comp.A0Button
 import design.a0.app.ui.comp.A0Chip
 import design.a0.app.ui.comp.A0Field
@@ -38,14 +43,16 @@ import design.a0.app.ui.comp.SectionLabel
 import design.a0.app.ui.comp.TopBar
 import design.a0.app.ui.comp.a0Clickable
 import design.a0.app.ui.comp.glass
-import design.a0.app.ui.comp.pressScale
 import design.a0.app.ui.icon.A0Icon
 import design.a0.app.ui.theme.A0
 import design.a0.app.ui.theme.T
 import design.a0.app.vm.AppViewModel
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 // ---------------------------------------------------------------------------
-// Projects
+// Projects — real, from local storage
 // ---------------------------------------------------------------------------
 @Composable
 fun ProjectsScreen(vm: AppViewModel) {
@@ -55,87 +62,66 @@ fun ProjectsScreen(vm: AppViewModel) {
             Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(start = 22.dp, end = 22.dp, bottom = 40.dp)
+                .padding(start = 22.dp, end = 22.dp, bottom = 120.dp)
         ) {
             Text("Projects", style = T.Title, color = A0.Ink, modifier = Modifier.padding(bottom = 14.dp))
 
-            // stat cards, horizontally scrollable like the prototype
-            Row(
-                Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                StatCard(
-                    eyebrow = "YOUR DESIGN ACTIVITY",
-                    value = "42",
-                    sub = "SCREENS DESIGNED",
-                    footer = "12 projects · 2026",
-                    gradient = listOf(Color(0xFFD4F78E), Color(0xFF9EDB4C)),
-                    ink = Color(0xFF14210A)
-                )
-                StatCard(
-                    eyebrow = "YOUR TOP STYLE",
-                    value = "Warm Minimal",
-                    sub = "MOST USED",
-                    footer = "18 designs",
-                    gradient = listOf(Color(0xFFEAE4FA), Color(0xFFCDC3F0)),
-                    ink = Color(0xFF2A2140)
-                )
-            }
-
-            Spacer(Modifier.height(20.dp))
-            Row(
-                Modifier.fillMaxWidth().a0Clickable { vm.openSheet("drafts") }.padding(vertical = 18.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                A0Icon("folder", 22.dp, A0.Ink)
-                Text("Drafts", style = T.Card.copy(fontSize = 18.sp), color = A0.Ink, modifier = Modifier.weight(1f))
-                A0Icon("chev", 18.dp, A0.Mu)
-            }
-            Row(
-                Modifier.fillMaxWidth().a0Clickable { vm.openSheet("exports") }.padding(vertical = 18.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                A0Icon("share", 22.dp, A0.Ink)
-                Text("Exports", style = T.Card.copy(fontSize = 18.sp), color = A0.Ink, modifier = Modifier.weight(1f))
-                A0Icon("chev", 18.dp, A0.Mu)
-            }
-
-            Text("Collections", style = T.H2, color = A0.Ink, modifier = Modifier.padding(top = 18.dp, bottom = 12.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                CollectionTile("plus", "New design", "Start from a prompt", Modifier.weight(1f)) { vm.go("chat") }
-                CollectionTile("file", "Import Figma", "Keep your system", Modifier.weight(1f)) {
-                    vm.go("chat"); vm.attach("Figma file")
+            if (vm.projects.isEmpty()) {
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .glass(RoundedCornerShape(A0.RCard), alpha = 0.92f)
+                        .padding(20.dp)
+                ) {
+                    Text("No designs yet", style = T.Card, color = A0.Ink)
+                    Text(
+                        "Projects appear here the moment the model returns a design you keep. " +
+                            "Nothing is pre-filled.",
+                        style = T.Small, color = A0.Mu, modifier = Modifier.padding(top = 6.dp, bottom = 16.dp)
+                    )
+                    A0Button(
+                        label = if (vm.hasKey()) "Start a design" else "Add an API key first",
+                        onClick = { vm.go(if (vm.hasKey()) "chat" else "key") }
+                    )
                 }
+                return@Column
             }
 
-            Text("Recent designs", style = T.H2, color = A0.Ink, modifier = Modifier.padding(top = 26.dp, bottom = 8.dp))
-            Content.projects.forEachIndexed { i, project ->
+            vm.projects.forEach { project ->
                 Row(
                     Modifier
                         .fillMaxWidth()
                         .padding(vertical = 8.dp)
-                        .a0Clickable { vm.go("prev") },
+                        .a0Clickable { vm.openProject(project) }
+                        .glass(RoundedCornerShape(20.dp), alpha = 0.9f)
+                        .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
+                    val spec = project.latest?.spec
                     Box(
                         Modifier
-                            .size(60.dp)
-                            .clip(RoundedCornerShape(16.dp))
+                            .size(width = 52.dp, height = 68.dp)
+                            .clip(RoundedCornerShape(14.dp))
                             .background(
                                 Brush.linearGradient(
-                                    listOf(A0.pastel(i).start, A0.pastel(i).end)
+                                    listOf(
+                                        hexColor(spec?.theme?.bg ?: "#F6EFE4", Color(0xFFF6EFE4)),
+                                        hexColor(spec?.theme?.accent ?: "#C0623B", Color(0xFFC0623B))
+                                    )
                                 )
                             )
                     )
                     Column(Modifier.weight(1f)) {
-                        Text(project.name, style = T.Card.copy(fontSize = 17.sp), color = A0.Ink)
-                        Text("${project.version} · edited today", style = T.Small, color = A0.Mu)
+                        Text(project.name, style = T.Card, color = A0.Ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            "${project.versions.size} version${if (project.versions.size == 1) "" else "s"} · " +
+                                SimpleDateFormat("d MMM", Locale.getDefault()).format(Date(project.createdAt)),
+                            style = T.Caption, color = A0.Mu
+                        )
                     }
                     Box(
-                        Modifier.size(44.dp).a0Clickable { vm.openSheet("action") },
+                        Modifier.size(44.dp).a0Clickable { vm.openSheet("project:${project.id}") },
                         contentAlignment = Alignment.Center
                     ) { A0Icon("dots", 20.dp, A0.Mu, 3.2f) }
                 }
@@ -144,50 +130,8 @@ fun ProjectsScreen(vm: AppViewModel) {
     }
 }
 
-@Composable
-private fun StatCard(
-    eyebrow: String, value: String, sub: String, footer: String,
-    gradient: List<Color>, ink: Color
-) {
-    Column(
-        Modifier
-            .width(300.dp)
-            .height(210.dp)
-            .clip(RoundedCornerShape(A0.RCard))
-            .background(Brush.linearGradient(gradient))
-            .padding(22.dp)
-    ) {
-        Text(eyebrow, style = T.Eyebrow, color = ink.copy(alpha = 0.6f))
-        Spacer(Modifier.weight(1f))
-        Text(value, style = T.Display.copy(fontSize = if (value.length > 6) 34.sp else 44.sp), color = ink)
-        Text(sub, style = T.Eyebrow, color = ink.copy(alpha = 0.6f), modifier = Modifier.padding(top = 2.dp))
-        Spacer(Modifier.height(18.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("A0 CREATOR", style = T.Mono.copy(fontSize = 13.sp, letterSpacing = 1.6.sp), color = ink)
-            Text(footer, style = T.Caption, color = ink.copy(alpha = 0.6f))
-        }
-    }
-}
-
-@Composable
-private fun CollectionTile(icon: String, title: String, sub: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Column(modifier.a0Clickable(onClick = onClick)) {
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(150.dp)
-                .clip(RoundedCornerShape(26.dp))
-                .background(Color.White)
-                .border(1.dp, A0.HairlineSoft, RoundedCornerShape(26.dp)),
-            contentAlignment = Alignment.Center
-        ) { A0Icon(icon, 38.dp, A0.Ink, 1.4f) }
-        Text(title, style = T.Card.copy(fontSize = 17.sp), color = A0.Ink, modifier = Modifier.padding(top = 10.dp))
-        Text(sub, style = T.Small, color = A0.Mu)
-    }
-}
-
 // ---------------------------------------------------------------------------
-// Explore
+// Explore — real palette directions, no invented counts
 // ---------------------------------------------------------------------------
 @Composable
 fun ExploreScreen(vm: AppViewModel) {
@@ -197,76 +141,43 @@ fun ExploreScreen(vm: AppViewModel) {
             Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(start = 22.dp, end = 22.dp, bottom = 40.dp)
+                .padding(start = 22.dp, end = 22.dp, bottom = 120.dp)
         ) {
-            Text("Explore", style = T.Title, color = A0.Ink, modifier = Modifier.padding(bottom = 14.dp))
-            Row(
-                Modifier.horizontalScroll(rememberScrollState()).padding(bottom = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Content.filters.forEachIndexed { i, label ->
-                    A0Chip(
-                        label = label,
-                        pastel = if (i == 0) null else i - 1,
-                        selected = vm.exploreFilter == i,
-                        onClick = { vm.exploreFilter = i }
-                    )
-                }
-            }
-
-            val filter = Content.filters[vm.exploreFilter]
-            val styles = Content.styles.filter { filter == "All" || it.category == filter }
-            val designs = Content.newDesigns.filter { filter == "All" || it.category == filter }
-
-            if (styles.isNotEmpty()) {
-                Text("Trending styles", style = T.H2, color = A0.Ink, modifier = Modifier.padding(top = 20.dp, bottom = 8.dp))
-                styles.forEach { style ->
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp)
-                            .a0Clickable { vm.go("chat"); vm.send("A ${style.name.lowercase()} style design") },
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        Box(
-                            Modifier
-                                .size(60.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(Brush.linearGradient(listOf(A0.pastel(style.pastel).start, A0.pastel(style.pastel).end)))
-                        )
-                        Column(Modifier.weight(1f)) {
-                            Text(style.name, style = T.Card.copy(fontSize = 17.sp), color = A0.Ink)
-                            Text(style.subtitle, style = T.Small, color = A0.Mu)
-                        }
-                        A0Icon("dots", 20.dp, A0.Mu, 3.2f)
-                    }
-                }
-            }
-
-            if (designs.isNotEmpty()) {
-                Text("New designs", style = T.H2, color = A0.Ink, modifier = Modifier.padding(top = 20.dp, bottom = 8.dp))
+            Text("Directions", style = T.Title, color = A0.Ink)
+            Text(
+                "Real palettes you can brief the model with. Tapping one fills the composer — " +
+                    "the model still designs everything else.",
+                style = T.Small, color = A0.Mu, modifier = Modifier.padding(top = 6.dp, bottom = 14.dp)
+            )
+            vm.presets.forEach { preset ->
                 Row(
-                    Modifier.horizontalScroll(rememberScrollState()),
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                        .a0Clickable { vm.startFromPreset(preset) }
+                        .glass(RoundedCornerShape(20.dp), alpha = 0.9f)
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    designs.forEach { design ->
-                        Column(
-                            Modifier
-                                .width(230.dp)
-                                .a0Clickable { vm.go("chat"); vm.send("A ${design.name.lowercase()} style design") }
-                        ) {
-                            Box(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .height(150.dp)
-                                    .clip(RoundedCornerShape(26.dp))
-                                    .background(Brush.linearGradient(listOf(A0.pastel(design.pastel).start, A0.pastel(design.pastel).end)))
+                    Box(
+                        Modifier
+                            .size(56.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(
+                                        hexColor(preset.bg, Color.White),
+                                        hexColor(preset.accent, A0.Accent)
+                                    )
+                                )
                             )
-                            Text(design.name, style = T.Card.copy(fontSize = 18.sp), color = A0.Ink, modifier = Modifier.padding(top = 10.dp))
-                            Text(design.subtitle, style = T.Small, color = A0.Mu)
-                        }
+                    )
+                    Column(Modifier.weight(1f)) {
+                        Text(preset.name, style = T.Card, color = A0.Ink)
+                        Text(preset.note, style = T.Caption, color = A0.Mu, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
+                    A0Icon("chev", 18.dp, A0.Mu)
                 }
             }
         }
@@ -274,20 +185,45 @@ fun ExploreScreen(vm: AppViewModel) {
 }
 
 // ---------------------------------------------------------------------------
-// Usage
+// Usage — computed from real API responses
 // ---------------------------------------------------------------------------
 @Composable
 fun UsageScreen(vm: AppViewModel) {
+    val entries = vm.usageEntries
+    val totalTokens = entries.sumOf { it.totalTokens }
+    val totalCost = entries.sumOf { it.costUsd }
+
     Column(Modifier.fillMaxSize()) {
         TopBar(onBack = { vm.go("set") })
         Column(
             Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(start = 22.dp, end = 22.dp, bottom = 40.dp)
+                .padding(start = 22.dp, end = 22.dp, bottom = 120.dp)
         ) {
             Text("Usage", style = T.Title, color = A0.Ink)
-            Text("Estimated from your own keys.", style = T.Body, color = A0.Mu, modifier = Modifier.padding(top = 6.dp))
+            Text(
+                "Counted from the usage fields your provider returned. Nothing estimated.",
+                style = T.Small, color = A0.Mu, modifier = Modifier.padding(top = 6.dp)
+            )
+
+            if (entries.isEmpty()) {
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 14.dp)
+                        .glass(RoundedCornerShape(A0.RCard), alpha = 0.92f)
+                        .padding(20.dp)
+                ) {
+                    Text("No requests yet", style = T.Card, color = A0.Ink)
+                    Text(
+                        "Generate a design and this screen fills with the token counts your key was billed for.",
+                        style = T.Small, color = A0.Mu, modifier = Modifier.padding(top = 6.dp)
+                    )
+                }
+                return@Column
+            }
+
             Column(
                 Modifier
                     .fillMaxWidth()
@@ -295,24 +231,40 @@ fun UsageScreen(vm: AppViewModel) {
                     .background(Color.White, RoundedCornerShape(A0.RCard))
                     .padding(18.dp)
             ) {
-                Text("This month", style = T.Small, color = A0.Mu)
-                Text("$2.84", style = T.Display.copy(fontSize = 54.sp), color = A0.Ink)
-                Text("412k tokens in · 96k out", style = T.Mono.copy(fontSize = 12.sp), color = A0.Mu)
+                Text("All time", style = T.Small, color = A0.Mu)
+                Text(
+                    if (totalCost > 0) "$" + String.format("%.2f", totalCost) else "$totalTokens tokens",
+                    style = T.Display.copy(fontSize = 44.sp),
+                    color = A0.Ink
+                )
+                Text(
+                    "$totalTokens tokens · ${entries.size} request${if (entries.size == 1) "" else "s"}" +
+                        if (totalCost > 0) "" else " · cost needs OpenRouter pricing",
+                    style = T.Mono.copy(fontSize = 12.sp), color = A0.Mu
+                )
             }
-            SectionLabel("By provider")
-            Content.usageProviders.forEach { (name, amount, pct) -> UsageBar(name, amount, pct) }
-            SectionLabel("By project")
-            Content.usageProjects.forEach { (name, amount, pct) -> UsageBar(name, amount, pct) }
+
+            SectionLabel("By model")
+            entries.groupBy { it.model }.mapValues { (_, list) -> list.sumOf { it.totalTokens } }
+                .entries.sortedByDescending { it.value }
+                .forEach { (model, tokens) ->
+                    UsageRow(model, "$tokens tokens", (tokens * 100 / totalTokens.coerceAtLeast(1)))
+                }
+
+            SectionLabel("Recent")
+            entries.sortedByDescending { it.at }.take(8).forEach { entry ->
+                UsageEntryRow(entry)
+            }
         }
     }
 }
 
 @Composable
-private fun UsageBar(name: String, amount: String, pct: Int) {
-    Column(Modifier.padding(bottom = 16.dp)) {
+private fun UsageRow(name: String, value: String, pct: Int) {
+    Column(Modifier.padding(bottom = 14.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(name, style = T.Body, color = A0.Ink)
-            Text(amount, style = T.Mono, color = A0.Mu)
+            Text(name.substringAfterLast('/').take(24), style = T.Body, color = A0.Ink)
+            Text(value, style = T.Mono, color = A0.Mu)
         }
         Box(
             Modifier
@@ -333,133 +285,188 @@ private fun UsageBar(name: String, amount: String, pct: Int) {
     }
 }
 
+@Composable
+private fun UsageEntryRow(entry: UsageEntry) {
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(entry.project.ifBlank { entry.model }, style = T.Small, color = A0.Ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                SimpleDateFormat("d MMM, HH:mm", Locale.getDefault()).format(Date(entry.at)),
+                style = T.Caption, color = A0.Mu
+            )
+        }
+        Text("${entry.promptTokens}→${entry.completionTokens}", style = T.MonoSmall, color = A0.Mu)
+    }
+}
+
 // ---------------------------------------------------------------------------
-// Settings
+// Settings — every row does something real
 // ---------------------------------------------------------------------------
 @Composable
 fun SettingsScreen(vm: AppViewModel) {
+    val uri = LocalUriHandler.current
     Column(Modifier.fillMaxSize()) {
         TopBar(onBack = { vm.go("chat") })
         Column(
             Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(start = 22.dp, end = 22.dp, bottom = 40.dp)
+                .padding(start = 22.dp, end = 22.dp, bottom = 120.dp)
         ) {
             Text("Settings", style = T.Title, color = A0.Ink, modifier = Modifier.padding(bottom = 10.dp))
-            Content.settings.forEach { row ->
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .a0Clickable {
-                            when (row.title) {
-                                "API keys" -> vm.go("key")
-                                "Default models" -> vm.openSheet("model")
-                                "Usage and cost" -> vm.go("use")
-                                "Font size" -> vm.cycleFontSize()
-                                "Language" -> vm.cycleLanguage()
-                                "System prompt" -> vm.openSheet("prompt")
-                                "Open-source licence" -> vm.openSheet("licence")
-                                "GitHub" -> vm.toast("github.com/x4abu/a0-design")
-                                else -> vm.toast(row.title)
-                            }
-                        }
-                        .padding(vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    PastelTile(row.icon, row.pastel, size = 44.dp)
-                    Text(row.title, style = T.BodyMedium, color = A0.Ink, modifier = Modifier.weight(1f))
-                    when (row.kind) {
-                        design.a0.app.data.SettingKind.Toggle -> {
-                            val checked = if (row.title == "Haptics") vm.haptics else vm.privacy
-                            A0Toggle(
-                                checked = checked,
-                                onChange = { on ->
-                                    if (row.title == "Haptics") vm.haptics = on else vm.privacy = on
-                                }
-                            )
-                        }
-                        design.a0.app.data.SettingKind.Value -> {
-                            val value = when (row.title) {
-                                "Font size" -> listOf("Small", "Medium", "Large")[vm.fontSizeIndex]
-                                "Language" -> listOf("English", "Hinglish", "Hindi")[vm.languageIndex]
-                                else -> row.value
-                            }
-                            Text(value, style = T.Body, color = A0.Mu)
-                        }
-                        else -> A0Icon("chev", 18.dp, A0.Mu)
-                    }
-                }
+
+            SettingItem("API keys", "key", 3, "…" + vm.maskedKey().takeLast(4)) { vm.go("key") }
+            SettingItem(
+                "Default model", "spark", 4,
+                vm.settings.model.substringAfterLast('/').take(20)
+            ) { vm.openSheet("model") }
+            SettingItem("Usage and cost", "chart", 1, "") { vm.go("use") }
+            SettingItem(
+                "Font size", "type", 0,
+                listOf("Small", "Medium", "Large")[vm.settings.fontScaleIndex]
+            ) { vm.cycleFontSize() }
+
+            Row(
+                Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                PastelTile("phone", 2, size = 44.dp)
+                Text("Haptics", style = T.BodyMedium, color = A0.Ink, modifier = Modifier.weight(1f))
+                A0Toggle(checked = vm.settings.haptics, onChange = { vm.toggleHaptics() })
+            }
+
+            SettingItem("System prompt", "file", 3, "") { vm.openSheet("prompt") }
+            SettingItem("Engine", "link", 1, if (vm.settings.engine == "backend") "Backend" else "Direct") {
+                vm.openSheet("engine")
+            }
+            SettingItem("Privacy — clear local data", "lock", 2, "") { vm.openSheet("wipe") }
+            SettingItem("Open-source licence", "file", 0, "MIT") { vm.openSheet("licence") }
+            SettingItem("GitHub", "git", 4, "") {
+                runCatching { uri.openUri("https://github.com/x4abu/a0-design") }
             }
         }
     }
 }
 
+@Composable
+private fun SettingItem(
+    title: String,
+    icon: String,
+    pastel: Int,
+    value: String,
+    onClick: () -> Unit
+) {
+    Row(
+        Modifier.fillMaxWidth().a0Clickable(onClick = onClick).padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        PastelTile(icon, pastel, size = 44.dp)
+        Text(title, style = T.BodyMedium, color = A0.Ink, modifier = Modifier.weight(1f))
+        if (value.isNotBlank()) Text(value, style = T.Small, color = A0.Mu)
+        A0Icon("chev", 18.dp, A0.Mu)
+    }
+}
+
 // ---------------------------------------------------------------------------
-// API keys
+// API keys — real validation against the provider
 // ---------------------------------------------------------------------------
 @Composable
 fun ApiKeysScreen(vm: AppViewModel) {
+    var backendUrl by remember { mutableStateOf(vm.settings.backendUrl) }
     Column(Modifier.fillMaxSize()) {
         TopBar(onBack = { vm.go("set") })
         Column(
             Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(start = 22.dp, end = 22.dp, bottom = 40.dp)
+                .padding(start = 22.dp, end = 22.dp, bottom = 120.dp)
         ) {
             Text("API keys", style = T.Title, color = A0.Ink)
             Text(
-                "Pick a provider and paste your key. It stays encrypted on this device.",
-                style = T.Body, color = A0.Mu, modifier = Modifier.padding(top = 8.dp, bottom = 16.dp)
+                "a0 ships no model. Paste a key and it is checked against the provider before " +
+                    "it is stored — encrypted with a key that never leaves this device.",
+                style = T.Small, color = A0.Mu, modifier = Modifier.padding(top = 8.dp, bottom = 16.dp)
             )
+
             Row(
                 Modifier.horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Content.providers.forEachIndexed { i, provider ->
+                vm.providers.forEachIndexed { i, provider ->
                     A0Chip(
-                        label = provider,
-                        pastel = i % 5,
-                        selected = vm.keyProvider == i,
-                        onClick = { vm.keyProvider = i }
+                        label = if (vm.hasKey(provider)) "$provider ✓" else provider,
+                        pastel = i,
+                        selected = vm.keyProvider == provider,
+                        onClick = { vm.selectProvider(provider) }
                     )
                 }
             }
+
             Spacer(Modifier.height(16.dp))
             A0Field(
-                value = vm.apiKey,
-                onValueChange = { vm.onKeyChange(it) },
+                value = vm.keyInput,
+                onValueChange = { vm.keyInput = it },
+                placeholder = "${vm.keyProvider} key",
                 mono = true,
-                password = !vm.keyVisible,
-                trailing = {
-                    Box(
-                        Modifier.size(40.dp).a0Clickable { vm.keyVisible = !vm.keyVisible },
-                        contentAlignment = Alignment.Center
-                    ) { A0Icon("eye", 20.dp, A0.Mu) }
-                }
+                password = true,
+                onImeAction = { vm.saveKey() }
             )
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(12.dp))
             A0Button(
-                label = when (vm.backendState) {
-                    "testing" -> "Testing…"
-                    "ok" -> "Connected"
-                    else -> "Test connection"
+                label = when (vm.keyStatus.state) {
+                    "checking" -> "Checking…"
+                    "ok" -> "Verified"
+                    else -> "Save and verify"
                 },
-                onClick = { vm.testConnection() }
+                enabled = vm.keyStatus.state != "checking",
+                onClick = { vm.saveKey() }
+            )
+
+            if (vm.keyStatus.message.isNotBlank()) {
+                Text(
+                    vm.keyStatus.message,
+                    style = T.Small,
+                    color = if (vm.keyStatus.state == "error") Color(0xFF8A3A28) else A0.AccentDeep,
+                    modifier = Modifier.padding(top = 10.dp)
+                )
+            }
+
+            if (vm.hasKey(vm.keyProvider)) {
+                Spacer(Modifier.height(10.dp))
+                A0Button(
+                    label = "Remove ${vm.keyProvider} key",
+                    primary = false,
+                    onClick = { vm.removeKey(vm.keyProvider) }
+                )
+            }
+
+            SectionLabel("Optional server engine")
+            Text(
+                "Run the FastAPI backend in /backend to assemble the full Design Brain server-side. " +
+                    "Leave empty to call the provider directly from this device.",
+                style = T.Caption, color = A0.Mu, modifier = Modifier.padding(bottom = 10.dp)
+            )
+            A0Field(
+                value = backendUrl,
+                onValueChange = { backendUrl = it },
+                placeholder = "https://your-backend.example.com",
+                mono = true,
+                height = 52.dp
             )
             Spacer(Modifier.height(10.dp))
             A0Button(
-                label = "View source on GitHub",
+                label = "Use backend",
                 primary = false,
-                onClick = { vm.toast("github.com/x4abu/a0-design") }
-            )
-            Spacer(Modifier.height(10.dp))
-            A0Button(
-                label = "Open the design brain",
-                primary = false,
-                onClick = { vm.toast("Design Brain lives in the backend /knowledge") }
+                onClick = {
+                    vm.setBackendUrl(backendUrl)
+                    vm.toast(if (backendUrl.isBlank()) "Direct mode" else "Backend mode")
+                }
             )
         }
     }

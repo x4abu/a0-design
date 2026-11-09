@@ -1,10 +1,8 @@
 package design.a0.app.net
 
-import design.a0.app.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -16,87 +14,67 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.TimeUnit
 
 /**
- * Thin client for the a0 backend (FastAPI, see /backend).
+ * Optional server engine. When the user runs the FastAPI backend (see /backend),
+ * the Design Brain is assembled server-side and the request is signed with the
+ * user's own key. If it is not configured the app calls the provider directly.
  *
- * The app is fully usable offline: every call here is best-effort and the
- * ViewModel falls back to the local design engine when the server is not
- * reachable. That keeps the product honest — no fake "connected" state.
+ * No silent fallbacks: an unreachable or misconfigured server is reported as-is.
  */
 object DesignApi {
 
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
-
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(8, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
-        .build()
-
     private val mediaType = "application/json; charset=utf-8".toMediaType()
 
-    var baseUrl: String = BuildConfig.A0_BACKEND_URL
-    var apiKey: String = ""
+    private val http = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(120, TimeUnit.SECONDS)
+        .build()
 
-    private fun url(path: String) = baseUrl.trimEnd('/') + path
-
-    suspend fun health(): Boolean = withContext(Dispatchers.IO) {
+    suspend fun health(baseUrl: String): Boolean = withContext(Dispatchers.IO) {
         runCatching {
-            val req = Request.Builder().url(url("/health")).get().build()
-            client.newCall(req).execute().use { it.isSuccessful }
+            val req = Request.Builder().url(baseUrl.trimEnd('/') + "/health").get().build()
+            http.newCall(req).execute().use { it.isSuccessful }
         }.getOrDefault(false)
     }
 
-    /**
-     * Assemble the Design Brain context on the server and ask the model for a
-     * design. Returns the assistant text (already anti-slop checked server side).
-     */
     suspend fun generate(
+        baseUrl: String,
         prompt: String,
-        model: String = "anthropic/claude-sonnet-4",
-        mode: String = "Auto",
-        systemPrompt: String = "",
-        platform: String = "android"
-    ): String? = withContext(Dispatchers.IO) {
+        model: String,
+        key: String
+    ): LlmClient.Result = withContext(Dispatchers.IO) {
         runCatching {
             val body = buildJsonObject {
                 put("prompt", prompt)
                 put("model", model)
-                put("mode", mode)
-                put("platform", platform)
-                put("system_prompt", systemPrompt)
-                put("theme", "pastel-soft-lime")
+                put("mode", "Auto")
+                put("platform", "android")
             }.toString().toRequestBody(mediaType)
 
-            val builder = Request.Builder().url(url("/api/generate")).post(body)
-            if (apiKey.isNotBlank()) builder.header("Authorization", "Bearer $apiKey")
-            client.newCall(builder.build()).execute().use { res ->
-                if (!res.isSuccessful) return@use null
-                val text = res.body?.string() ?: return@use null
-                val root = json.parseToJsonElement(text).jsonObject
-                root["answer"]?.jsonPrimitive?.content
-            }
-        }.getOrNull()
-    }
+            val req = Request.Builder()
+                .url(baseUrl.trimEnd('/') + "/api/generate")
+                .header("Authorization", "Bearer $key")
+                .post(body)
+                .build()
 
-    /** Deterministic anti-slop audit of the current design system (15 checks). */
-    suspend fun audit(payload: JsonObject): JsonObject? = withContext(Dispatchers.IO) {
-        runCatching {
-            val body = payload.toString().toRequestBody(mediaType)
-            val req = Request.Builder().url(url("/api/antislop/check")).post(body).build()
-            client.newCall(req).execute().use { res ->
-                if (!res.isSuccessful) return@use null
-                json.parseToJsonElement(res.body?.string() ?: return@use null).jsonObject
+            http.newCall(req).execute().use { res ->
+                val text = res.body?.string()
+                if (!res.isSuccessful) {
+                    val detail = runCatching {
+                        json.parseToJsonElement(text ?: "").jsonObject["detail"]?.jsonPrimitive?.content
+                    }.getOrNull()
+                    LlmClient.Result.Err(res.code, detail ?: "Backend error " + res.code)
+                } else {
+                    val answer = runCatching {
+                        json.parseToJsonElement(text ?: "").jsonObject["answer"]?.jsonPrimitive?.content
+                    }.getOrNull()
+                    if (answer.isNullOrBlank()) {
+                        LlmClient.Result.Err(res.code, "The backend returned no answer.")
+                    } else {
+                        LlmClient.Result.Ok(answer, LlmClient.Usage(0, 0, 0.0))
+                    }
+                }
             }
-        }.getOrNull()
-    }
-
-    suspend fun designBrainSections(): List<String> = withContext(Dispatchers.IO) {
-        runCatching {
-            val req = Request.Builder().url(url("/api/brain/sections")).get().build()
-            client.newCall(req).execute().use { res ->
-                if (!res.isSuccessful) return@use emptyList()
-                val root = json.parseToJsonElement(res.body?.string() ?: "").jsonObject
-                root["sections"]?.jsonPrimitive?.content?.split("|") ?: emptyList()
-            }
-        }.getOrDefault(emptyList())
+        }.getOrElse { LlmClient.Result.Err(0, it.message ?: "Could not reach the backend") }
     }
 }

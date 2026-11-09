@@ -1,95 +1,465 @@
 package design.a0.app.vm
 
+import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import design.a0.app.data.Content
+import design.a0.app.data.AppStore
+import design.a0.app.data.DesignEngine
+import design.a0.app.data.Project
+import design.a0.app.data.Settings
+import design.a0.app.data.Spec
+import design.a0.app.data.SpecJson
+import design.a0.app.data.SpecTheme
+import design.a0.app.data.UsageEntry
+import design.a0.app.data.Version
 import design.a0.app.net.DesignApi
+import design.a0.app.net.LlmClient
 import design.a0.app.ui.mascot.Mood
-import design.a0.app.ui.theme.AccentPresets
-import design.a0.app.ui.theme.DesignSystem
-import design.a0.app.ui.theme.TypefaceChoice
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-enum class FeedKind { User, Agent, Steps, Plan, Ready, Updated, Stopped }
+enum class FeedKind { User, Agent, Steps, Error, Ready, Audit }
 
 data class FeedItem(
     val id: Long,
     val kind: FeedKind,
     val text: String = "",
-    val attachments: List<String> = emptyList(),
-    val stepIndex: Int = 0,
-    val planStep: Int = 0,
-    val answers: List<String> = emptyList(),
-    val planReady: Boolean = false
+    val step: Int = 0,
+    val spec: Spec? = null,
+    val findings: List<DesignEngine.Finding> = emptyList(),
+    val action: String = ""
 )
 
-/**
- * One state holder for the whole app. It mirrors the prototype's JS state 1:1:
- * screen routing, the chat feed, the simulated generation pipeline, the live
- * design system and the preview workspace.
- */
-class AppViewModel : ViewModel() {
+data class KeyStatus(val state: String, val message: String = "")   // idle | checking | ok | error
 
-    // ---- routing -------------------------------------------------------
+/**
+ * Single state holder. Every list here starts empty and only ever holds things that
+ * actually happened on this device: real projects, real versions, real token usage,
+ * real errors. Nothing is seeded.
+ */
+class AppViewModel(app: Application) : AndroidViewModel(app) {
+
+    private val store = AppStore(app)
+
+    // ---- routing --------------------------------------------------------
     var screen by mutableStateOf("chat")
     var drawer by mutableStateOf(false)
     var sheet by mutableStateOf<String?>(null)
     var toast by mutableStateOf<String?>(null)
     private var toastJob: Job? = null
 
-    // ---- chat ----------------------------------------------------------
-    val feed = mutableStateListOf<FeedItem>()
-    var emptyChat by mutableStateOf(true)
-    var prompt by mutableStateOf("")
-    var mode by mutableStateOf(0)                 // Auto / Plan
-    var modelName by mutableStateOf("Sonnet")
-    var mood by mutableStateOf(Mood.Idle)
-    var built by mutableStateOf(false)
-    var version by mutableStateOf(1)
-    var attachments = mutableStateListOf<String>()
-    var planAnswers = mutableStateListOf<String>()
-    var systemPrompt by mutableStateOf("")
-    private var generationJob: Job? = null
-    private var idSeed = 0L
-
-    // ---- preview workspace ---------------------------------------------
-    var previewTab by mutableStateOf(0)           // Preview · Canvas · Code · Style · History
-    var deviceMode by mutableStateOf(0)           // Phone · Tablet · Web
-    var playMode by mutableStateOf(false)
-    var selectedElement by mutableStateOf<String?>(null)
-    var codeLang by mutableStateOf(0)             // Compose · React · HTML
-    var canvasZoom by mutableStateOf(1f)
-    var variantsShown by mutableStateOf(false)
-    var variantSet by mutableStateOf(0)           // Refine · Explore · Reimagine
-    var historyVersion by mutableStateOf("v1")
-
-    // ---- live design system --------------------------------------------
-    var ds by mutableStateOf(DesignSystem())
+    // ---- settings -------------------------------------------------------
+    var settings by mutableStateOf(store.settings)
         private set
-    private val undoStack = mutableStateListOf<DesignSystem>()
 
-    // ---- settings ------------------------------------------------------
-    var fontSizeIndex by mutableStateOf(1)
-    var languageIndex by mutableStateOf(0)
-    var haptics by mutableStateOf(true)
-    var privacy by mutableStateOf(true)
-    var keyProvider by mutableStateOf(0)
-    var apiKey by mutableStateOf("sk-or-demo-4f9a1c7e22")
-    var keyVisible by mutableStateOf(false)
-    var backendState by mutableStateOf<String?>(null)  // null | "testing" | "ok" | "fail"
+    val providers = listOf("OpenRouter", "OpenAI", "Anthropic")
 
-    // ---- explore -------------------------------------------------------
-    var exploreFilter by mutableStateOf(0)
+    // ---- keys -----------------------------------------------------------
+    var keyProvider by mutableStateOf(store.settings.provider)
+    var keyInput by mutableStateOf("")
+    var keyStatus by mutableStateOf(KeyStatus("idle"))
 
-    // ====================================================================
-    // Navigation & chrome
-    // ====================================================================
+    fun hasKey(provider: String = settings.provider): Boolean =
+        store.keys.get(provider)?.isNotBlank() == true
+
+    fun maskedKey(provider: String = settings.provider): String {
+        val k = store.keys.get(provider) ?: return ""
+        return if (k.length <= 8) "••••" else k.take(4) + "••••" + k.takeLast(4)
+    }
+
+    fun selectProvider(provider: String) {
+        keyProvider = provider
+        keyInput = ""
+        keyStatus = KeyStatus("idle")
+    }
+
+    fun saveKey() {
+        val key = keyInput.trim()
+        if (key.length < 16) {
+            keyStatus = KeyStatus("error", "That key looks too short — paste the whole key.")
+            return
+        }
+        keyStatus = KeyStatus("checking", "Checking with ${keyProvider}…")
+        viewModelScope.launch {
+            when (val res = LlmClient.checkKey(keyProvider, key)) {
+                is LlmClient.Result.Ok -> {
+                    store.keys.put(keyProvider, key)
+                    keyStatus = KeyStatus("ok", "Key verified with $keyProvider and stored on this device.")
+                    keyInput = ""
+                    updateSettings(settings.copy(provider = keyProvider))
+                    loadModels()
+                }
+                is LlmClient.Result.Err -> keyStatus = KeyStatus("error", "${res.status}: ${res.message}")
+            }
+        }
+    }
+
+    fun removeKey(provider: String) {
+        store.keys.remove(provider)
+        keyStatus = KeyStatus("idle")
+        toast("$provider key removed")
+    }
+
+    // ---- models ---------------------------------------------------------
+    var models by mutableStateOf<List<LlmClient.Model>>(emptyList())
+        private set
+    var modelsState by mutableStateOf("idle")     // idle | loading | ready | error
+        private set
+    var modelsError by mutableStateOf("")
+        private set
+
+    fun loadModels() {
+        if (modelsState == "loading") return
+        modelsState = "loading"
+        modelsError = ""
+        viewModelScope.launch {
+            val list = LlmClient.openRouterModels()
+            if (list.isEmpty()) {
+                modelsState = "error"
+                modelsError = "Could not load the model catalogue. Check your connection."
+            } else {
+                models = list.sortedBy { it.id }
+                modelsState = "ready"
+                if (models.none { it.id == settings.model }) {
+                    // keep whatever the user had, but make sure the picker is usable
+                    updateSettings(settings.copy(model = list.first().id))
+                }
+            }
+        }
+    }
+
+    fun setModel(id: String) {
+        updateSettings(settings.copy(model = id))
+        closeAll()
+        toast(id)
+    }
+
+    // ---- chat -----------------------------------------------------------
+    val feed = mutableStateListOf<FeedItem>()
+    var prompt by mutableStateOf("")
+    var mode by mutableStateOf(0)                  // 0 Auto · 1 Plan
+    var mood by mutableStateOf(Mood.Idle)
+    var busy by mutableStateOf(false)
+        private set
+    var planStep by mutableStateOf(-1)             // -1 = no plan running
+    val planAnswers = mutableStateListOf<String>()
+    private var idSeed = 0L
+    private var generationJob: Job? = null
+
+    private fun nextId() = ++idSeed
+
+    fun onPromptChange(value: String) {
+        prompt = value
+        mood = when {
+            value.isBlank() -> Mood.Idle
+            value.trimEnd().endsWith("?") -> Mood.Curious
+            else -> Mood.Typing
+        }
+    }
+
+    fun send(text: String = prompt) {
+        val brief = text.trim()
+        if (brief.isEmpty()) {
+            mood = Mood.Curious
+            toast("Describe what you want to design first")
+            return
+        }
+        if (!hasKey()) {
+            emptyStateNeedsKey = true
+            toast("No API key. Add one first.")
+            go("key")
+            return
+        }
+        prompt = ""
+        feed.add(FeedItem(nextId(), FeedKind.User, brief))
+        if (mode == 1 && planStep < 0) {
+            planAnswers.clear()
+            planStep = 0
+            mood = Mood.Curious
+            return
+        }
+        generate(brief, planAnswers.toList(), null)
+    }
+
+    var emptyStateNeedsKey by mutableStateOf(false)
+
+    fun answerPlan(index: Int, answer: String) {
+        if (answer.isNotBlank()) planAnswers.add(answer)
+        if (index >= 1) {
+            planStep = -1
+            val brief = feed.lastOrNull { it.kind == FeedKind.User }?.text ?: prompt
+            generate(brief, planAnswers.toList(), null)
+        } else {
+            planStep = index + 1
+        }
+        mood = Mood.Happy
+    }
+
+    fun skipPlan() {
+        planStep = -1
+        val brief = feed.lastOrNull { it.kind == FeedKind.User }?.text ?: prompt
+        generate(brief, planAnswers.toList(), null)
+    }
+
+    fun generate(brief: String, answers: List<String> = emptyList(), previous: Spec? = null, repair: List<DesignEngine.Finding> = emptyList()) {
+        if (!hasKey()) {
+            go("key")
+            toast("No API key. Add one first.")
+            return
+        }
+        generationJob?.cancel()
+        busy = true
+        mood = Mood.Think
+        val itemId = nextId()
+        feed.add(FeedItem(itemId, FeedKind.Steps, step = 0))
+        generationJob = viewModelScope.launch {
+            val provider = settings.provider
+            val key = store.keys.get(provider) ?: run {
+                busy = false
+                replace(itemId, FeedItem(itemId, FeedKind.Error, "No key stored for $provider.", action = "Add key"))
+                return@launch
+            }
+
+            replace(itemId, FeedItem(itemId, FeedKind.Steps, step = 1))
+            val prompt = DesignEngine.userPrompt(brief, if (mode == 1) "Plan" else "Auto", answers, previous, repair)
+            val result = if (settings.engine == "backend" && settings.backendUrl.isNotBlank()) {
+                DesignApi.generate(settings.backendUrl, prompt, settings.model, key)
+            } else {
+                LlmClient.complete(provider, key, settings.model, DesignEngine.SYSTEM_PROMPT, prompt)
+            }
+
+            when (result) {
+                is LlmClient.Result.Err -> {
+                    busy = false
+                    mood = Mood.Sad
+                    replace(
+                        itemId,
+                        FeedItem(
+                            itemId, FeedKind.Error,
+                            "${result.status} ${result.message}".trim(),
+                            action = if (result.status == 401 || result.status == 403) "Fix key" else "Retry"
+                        )
+                    )
+                }
+                is LlmClient.Result.Ok -> {
+                    replace(itemId, FeedItem(itemId, FeedKind.Steps, step = 2))
+                    val parsed = SpecJson.parse(result.text)
+                    if (parsed.isFailure) {
+                        busy = false
+                        mood = Mood.Sad
+                        replace(
+                            itemId,
+                            FeedItem(
+                                itemId, FeedKind.Error,
+                                parsed.exceptionOrNull()?.message ?: "The model returned something unreadable.",
+                                action = "Retry"
+                            )
+                        )
+                        return@launch
+                    }
+                    val spec = parsed.getOrThrow()
+                    val findings = DesignEngine.audit(spec)
+                    val failed = findings.filterNot { it.ok }
+
+                    // one automatic repair round, then we show the real result either way
+                    if (failed.isNotEmpty() && repair.isEmpty()) {
+                        busy = false
+                        feed.removeAt(feed.indexOfFirst { it.id == itemId })
+                        generate(brief, answers, spec, failed)
+                        return@launch
+                    }
+
+                    replace(itemId, FeedItem(itemId, FeedKind.Steps, step = 3))
+                    val label = if (previous == null) "v1" else "v" + ((currentProject?.versions?.size ?: 0) + 1)
+                    val project = store.addVersion(currentProject?.id, spec, label)
+                    currentProject = project
+                    currentVersion = project.latest
+                    projects = store.projects()
+                    recordUsage(result.usage, provider, settings.model, spec.name)
+                    busy = false
+                    mood = Mood.Happy
+                    feed.removeAll { it.id == itemId }
+                    feed.add(FeedItem(nextId(), FeedKind.Ready, spec = spec))
+                    if (findings.any { !it.ok }) {
+                        feed.add(FeedItem(nextId(), FeedKind.Audit, findings = findings))
+                    }
+                }
+            }
+        }
+    }
+
+    fun stopGeneration() {
+        generationJob?.cancel()
+        busy = false
+        mood = Mood.Idle
+        val last = feed.lastOrNull { it.kind == FeedKind.Steps } ?: return
+        replace(last.id, FeedItem(last.id, FeedKind.Error, "Stopped. No request is in flight."))
+    }
+
+    fun retry() {
+        val brief = feed.lastOrNull { it.kind == FeedKind.User }?.text ?: return
+        generate(brief)
+    }
+
+    fun newChat() {
+        generationJob?.cancel()
+        feed.clear()
+        busy = false
+        planStep = -1
+        prompt = ""
+        mood = Mood.Idle
+        currentProject = null
+        currentVersion = null
+        go("chat")
+    }
+
+    private fun replace(id: Long, item: FeedItem) {
+        val i = feed.indexOfFirst { it.id == id }
+        if (i >= 0) feed[i] = item
+    }
+
+    private fun recordUsage(usage: LlmClient.Usage, provider: String, model: String, project: String) {
+        val price = models.firstOrNull { it.id == model }
+        val cost = if (price != null && (price.promptPrice > 0 || price.completionPrice > 0)) {
+            usage.promptTokens * price.promptPrice + usage.completionTokens * price.completionPrice
+        } else 0.0
+        store.addUsage(
+            UsageEntry(
+                at = System.currentTimeMillis(),
+                provider = provider,
+                model = model,
+                promptTokens = usage.promptTokens,
+                completionTokens = usage.completionTokens,
+                costUsd = cost,
+                project = project
+            )
+        )
+        usageEntries = store.usage()
+    }
+
+    // ---- projects -------------------------------------------------------
+    var projects by mutableStateOf(store.projects())
+        private set
+    var currentProject by mutableStateOf<Project?>(null)
+    var currentVersion by mutableStateOf<Version?>(null)
+
+    fun openProject(project: Project) {
+        currentProject = project
+        currentVersion = project.latest
+        screenIndex = 0
+        go("preview")
+    }
+
+    fun renameProject(project: Project, name: String) {
+        store.renameProject(project.id, name)
+        projects = store.projects()
+        if (currentProject?.id == project.id) currentProject = store.project(project.id)
+        toast("Renamed")
+    }
+
+    fun deleteProject(project: Project) {
+        store.deleteProject(project.id)
+        projects = store.projects()
+        if (currentProject?.id == project.id) {
+            currentProject = null
+            currentVersion = null
+        }
+        closeAll()
+        toast("Deleted ${project.name}")
+    }
+
+    // ---- preview --------------------------------------------------------
+    var previewTab by mutableStateOf(0)     // Design · Screens · Code · Style · History
+    var screenIndex by mutableStateOf(0)
+    var codeLang by mutableStateOf(0)       // Compose · Markdown
+    var selectedBlock by mutableStateOf<Int?>(null)
+
+    val spec: Spec? get() = currentVersion?.spec
+
+    fun updateTheme(theme: SpecTheme) {
+        val version = currentVersion ?: return
+        val updated = version.copy(spec = version.spec.copy(theme = theme))
+        currentVersion = updated
+    }
+
+    /** Style edits are real edits: they create a new version so History stays truthful. */
+    fun commitStyleChange(label: String) {
+        val version = currentVersion ?: return
+        val project = currentProject ?: return
+        val next = store.addVersion(project.id, version.spec, label)
+        currentProject = next
+        currentVersion = next.latest
+        projects = store.projects()
+        toast("Saved as ${next.latest?.label}")
+    }
+
+    fun restoreVersion(version: Version) {
+        currentVersion = version
+        previewTab = 0
+        toast("Restored ${version.label}")
+    }
+
+    // ---- usage ----------------------------------------------------------
+    var usageEntries by mutableStateOf(store.usage())
+        private set
+
+    // ---- explore presets (real palettes, no invented counts) -------------
+    data class Preset(val name: String, val note: String, val accent: String, val bg: String, val ink: String, val font: String)
+
+    val presets = listOf(
+        Preset("Pastel Soft", "Warm off-white, lime accent, serif display", "#7FCF2E", "#F8FBF4", "#14171A", "serif"),
+        Preset("Warm Minimal", "Editorial cream, terracotta, quiet type", "#C0623B", "#F6EFE4", "#2B2118", "serif"),
+        Preset("Quiet Luxury", "Low saturation, hairline rules, generous air", "#8A7B5C", "#F4F2ED", "#1B1A17", "serif"),
+        Preset("Soft Brutalist", "Hard edges, heavy contrast, one warm accent", "#D6A24A", "#EFEFEA", "#111111", "mono"),
+        Preset("Warm Dark", "Plum-charcoal canvas, one lifted accent", "#C6F36A", "#1E1916", "#F4ECE3", "sans")
+    )
+
+    fun startFromPreset(preset: Preset) {
+        go("chat")
+        prompt = "Design an app in the ${preset.name} direction — ${preset.note.lowercase()}."
+    }
+
+    // ---- settings & misc ------------------------------------------------
+    private fun updateSettings(next: Settings) {
+        settings = next
+        store.settings = next
+    }
+
+    fun setSystemPrompt(text: String) = updateSettings(settings.copy(systemPrompt = text))
+
+    fun setBackendUrl(url: String) = updateSettings(settings.copy(backendUrl = url.trim(), engine = if (url.isBlank()) "direct" else "backend"))
+
+    fun cycleFontSize() {
+        updateSettings(settings.copy(fontScaleIndex = (settings.fontScaleIndex + 1) % 3))
+        toast("Font size: " + listOf("Small", "Medium", "Large")[settings.fontScaleIndex])
+    }
+
+    fun fontScale(): Float = when (settings.fontScaleIndex) {
+        0 -> 0.92f
+        2 -> 1.12f
+        else -> 1f
+    }
+
+    fun toggleHaptics() = updateSettings(settings.copy(haptics = !settings.haptics))
+
+    fun clearEverything() {
+        store.clearEverything()
+        projects = emptyList()
+        usageEntries = emptyList()
+        currentProject = null
+        currentVersion = null
+        settings = store.settings
+        feed.clear()
+        newChat()
+        toast("All local data cleared")
+    }
+
+    // ---- chrome ---------------------------------------------------------
     fun go(target: String) {
         screen = target
         closeAll()
@@ -97,331 +467,14 @@ class AppViewModel : ViewModel() {
 
     fun openDrawer() { drawer = true }
     fun openSheet(id: String) { sheet = id }
-    fun closeAll() {
-        drawer = false
-        sheet = null
-    }
+    fun closeAll() { drawer = false; sheet = null }
 
     fun toast(message: String) {
         toast = message
         toastJob?.cancel()
         toastJob = viewModelScope.launch {
-            delay(2200)
+            delay(2400)
             toast = null
         }
-    }
-
-    // ====================================================================
-    // Chat
-    // ====================================================================
-    private fun nextId(): Long = ++idSeed
-
-    fun onPromptChange(value: String) {
-        prompt = value
-        mood = when {
-            value.isBlank() -> Mood.Idle
-            Regex("love|thank|shukriya|beautiful|cute|awesome|amazing|great", RegexOption.IGNORE_CASE).containsMatchIn(value) -> Mood.Love
-            Regex("hate|worst|bad|error|fail|sad|ugly|bekar", RegexOption.IGNORE_CASE).containsMatchIn(value) -> Mood.Sad
-            Regex("\\?|kya|how|why|kaise", RegexOption.IGNORE_CASE).containsMatchIn(value) -> Mood.Curious
-            else -> Mood.Typing
-        }
-    }
-
-    fun send(text: String = prompt) {
-        val value = text.trim()
-        if (value.isEmpty()) {
-            mood = Mood.Curious
-            toast("Describe what you want to design first")
-            return
-        }
-        emptyChat = false
-        feed.add(FeedItem(nextId(), FeedKind.User, value, attachments.toList()))
-        attachments.clear()
-        prompt = ""
-        mood = Mood.Happy
-
-        if (built) {
-            // refinement pass: shimmer → updated copy
-            val id = nextId()
-            feed.add(FeedItem(id, FeedKind.Agent, "Thinking…", emptyList(), stepIndex = -1))
-            viewModelScope.launch {
-                delay(1300)
-                version += 1
-                historyVersion = "v$version"
-                replace(id, FeedItem(id, FeedKind.Updated, "Updated. I softened the hero and kept the palette. Saved as v$version."))
-                mood = Mood.Happy
-            }
-            return
-        }
-
-        if (mode == 1) startPlan() else startAuto(value)
-    }
-
-    private fun replace(id: Long, item: FeedItem) {
-        val index = feed.indexOfFirst { it.id == id }
-        if (index >= 0) feed[index] = item
-    }
-
-    private fun startAuto(value: String) {
-        val id = nextId()
-        feed.add(FeedItem(id, FeedKind.Agent, "On it. I'll pick the palette, type and layout myself."))
-        mood = Mood.Think
-        viewModelScope.launch {
-            delay(1200)
-            // try the real backend first; it returns a written design rationale
-            val remote = runCatching { DesignApi.generate(value, mode = "Auto", systemPrompt = systemPrompt) }.getOrNull()
-            if (!remote.isNullOrBlank()) replace(id, FeedItem(id, FeedKind.Agent, remote))
-            build()
-        }
-    }
-
-    private fun startPlan() {
-        planAnswers.clear()
-        val id = nextId()
-        feed.add(FeedItem(id, FeedKind.Plan, "Just two quick choices. I'll decide everything else.", planStep = 0))
-        mood = Mood.Curious
-    }
-
-    fun answerPlan(questionIndex: Int, answer: String) {
-        val id = feed.lastOrNull { it.kind == FeedKind.Plan }?.id ?: return
-        if (answer.isNotEmpty()) planAnswers.add(answer)
-        mood = Mood.Happy
-        val next = questionIndex + 1
-        val item = feed.firstOrNull { it.id == id } ?: return
-        if (next < 2) {
-            replace(id, item.copy(planStep = next))
-        } else {
-            replace(id, item.copy(planReady = true, answers = planAnswers.toList()))
-        }
-    }
-
-    fun planDecideForMe(questionIndex: Int) = answerPlan(questionIndex, "")
-
-    fun confirmPlan() {
-        feed.removeAll { it.kind == FeedKind.Plan }
-        build()
-    }
-
-    fun build() {
-        val id = nextId()
-        feed.add(FeedItem(id, FeedKind.Steps, stepIndex = 0))
-        mood = Mood.Think
-        generationJob?.cancel()
-        generationJob = viewModelScope.launch {
-            Content.generationSteps.indices.forEach { i ->
-                delay(1100)
-                val item = feed.firstOrNull { it.id == id } ?: return@launch
-                replace(id, item.copy(stepIndex = i + 1))
-            }
-            delay(300)
-            built = true
-            version = 1
-            historyVersion = "v1"
-            replace(id, FeedItem(id, FeedKind.Ready,
-                "Your design is ready: four screens with one consistent system. Tap anything in the preview to edit it, or keep chatting to refine."))
-            mood = Mood.Happy
-        }
-    }
-
-    fun stopGeneration() {
-        generationJob?.cancel()
-        val id = feed.lastOrNull { it.kind == FeedKind.Steps }?.id ?: return
-        replace(id, FeedItem(id, FeedKind.Stopped, "Generation stopped."))
-        mood = Mood.Sad
-    }
-
-    fun newChat() {
-        generationJob?.cancel()
-        feed.clear()
-        built = false
-        version = 1
-        historyVersion = "v1"
-        emptyChat = true
-        mood = Mood.Idle
-        prompt = ""
-        attachments.clear()
-        go("chat")
-    }
-
-    fun attach(label: String) {
-        attachments.add(label)
-        toast("$label attached")
-        mood = Mood.Happy
-    }
-
-    fun removeAttachment(index: Int) {
-        if (index in attachments.indices) attachments.removeAt(index)
-    }
-
-    fun enhancePrompt() {
-        val base = prompt.trim()
-        toast("Enhancing prompt…")
-        mood = Mood.Think
-        viewModelScope.launch {
-            delay(1200)
-            prompt = base.trimEnd().trimEnd('.') +
-                ". Warm, minimal and editorial, with generous whitespace, soft rounded cards, " +
-                "one confident headline per screen and gentle motion."
-            mood = Mood.Typing
-        }
-    }
-
-    fun setModel(name: String) {
-        modelName = name
-        closeAll()
-        toast(name)
-    }
-
-    fun addCustomModel(id: String) {
-        if (id.isBlank()) { toast("Enter a model ID first"); return }
-        modelName = id.substringAfterLast('/')
-        closeAll()
-        toast("$id added")
-    }
-
-    // ====================================================================
-    // Design system (Style tab) + undo
-    // ====================================================================
-    private fun snapshot() {
-        undoStack.add(ds)
-        if (undoStack.size > 30) undoStack.removeAt(0)
-    }
-
-    fun setAccent(index: Int) {
-        snapshot()
-        val (a, b) = AccentPresets[index.coerceIn(0, AccentPresets.lastIndex)]
-        ds = ds.copy(accent = a, accent2 = b)
-    }
-
-    fun setTypeface(index: Int) {
-        snapshot()
-        ds = ds.copy(typeface = TypefaceChoice.entries[index.coerceIn(0, 2)])
-    }
-
-    fun setRadius(value: Int) {
-        ds = ds.copy(radius = value)
-    }
-
-    fun setRadiusWithUndo(value: Int) {
-        snapshot()
-        ds = ds.copy(radius = value)
-    }
-
-    fun setDark(dark: Boolean) {
-        snapshot()
-        ds = ds.copy(dark = dark)
-    }
-
-    fun setWireframe(wireframe: Boolean) {
-        snapshot()
-        ds = ds.copy(wireframe = wireframe)
-    }
-
-    fun undo() {
-        if (undoStack.isEmpty()) { toast("Nothing to undo"); return }
-        ds = undoStack.removeAt(undoStack.lastIndex)
-        toast("Undone")
-        mood = Mood.Curious
-    }
-
-    /** Contrast ratio of the accent against the device canvas (#FBF9F5). */
-    fun contrastLabel(): Pair<String, Boolean> {
-        val ratio = contrast(ds.accent, androidx.compose.ui.graphics.Color(0xFFFBF9F5))
-        val pass = ratio >= 4.5
-        return (if (pass) "AA " else "Low ") + String.format("%.1f", ratio) + ":1" to pass
-    }
-
-    private fun contrast(a: androidx.compose.ui.graphics.Color, b: androidx.compose.ui.graphics.Color): Double {
-        fun lum(c: androidx.compose.ui.graphics.Color): Double {
-            fun ch(v: Float): Double {
-                val s = v.toDouble()
-                return if (s <= 0.03928) s / 12.92 else Math.pow((s + 0.055) / 1.055, 2.4)
-            }
-            return 0.2126 * ch(c.red) + 0.7152 * ch(c.green) + 0.0722 * ch(c.blue)
-        }
-        val l1 = lum(a); val l2 = lum(b)
-        return (maxOf(l1, l2) + 0.05) / (minOf(l1, l2) + 0.05)
-    }
-
-    // ====================================================================
-    // Preview workspace
-    // ====================================================================
-    fun selectElement(name: String) {
-        selectedElement = name
-    }
-
-    fun clearSelection() {
-        selectedElement = null
-    }
-
-    fun quickEdit(action: String) {
-        val name = selectedElement ?: return
-        toast("Applied to $name")
-        mood = Mood.Happy
-    }
-
-    fun annotate(text: String) {
-        if (text.isBlank()) return
-        val name = selectedElement?.lowercase() ?: "design"
-        clearSelection()
-        go("chat")
-        send("Edit the $name: $text")
-    }
-
-    fun applyVersion(index: Int, restore: Boolean) {
-        val v = Content.history[index]
-        snapshot()
-        setAccent(v.accentIndex)
-        ds = ds.copy(radius = v.radius, typeface = if (v.serif) TypefaceChoice.Serif else TypefaceChoice.Sans)
-        if (restore) historyVersion = v.tag
-        toast(if (restore) "Restored ${v.tag}" else "Comparing ${v.tag}. Tap undo to go back")
-        previewTab = 0
-    }
-
-    fun showVariants() {
-        val names = listOf("Refine", "Explore", "Reimagine")
-        toast("Generating 3 ${names[variantSet].lowercase()} variants…")
-        mood = Mood.Think
-        variantsShown = false
-        viewModelScope.launch {
-            delay(900)
-            variantsShown = true
-        }
-    }
-
-    // ====================================================================
-    // Settings / keys
-    // ====================================================================
-    fun cycleFontSize() {
-        fontSizeIndex = (fontSizeIndex + 1) % 3
-        toast("Font size: " + listOf("Small", "Medium", "Large")[fontSizeIndex])
-    }
-
-    fun cycleLanguage() {
-        languageIndex = (languageIndex + 1) % 3
-        toast("Language: " + listOf("English", "Hinglish", "Hindi")[languageIndex])
-    }
-
-    fun fontScale(): Float = when (fontSizeIndex) {
-        0 -> 0.93f
-        2 -> 1.13f
-        else -> 1f
-    }
-
-    fun testConnection() {
-        backendState = "testing"
-        viewModelScope.launch {
-            val ok = DesignApi.health()
-            delay(600)
-            backendState = if (ok) "ok" else "ok"   // local key check still passes
-            toast(if (ok) "Key works. Backend reachable." else "Key works. Stored encrypted on this device.")
-            delay(2400)
-            backendState = null
-        }
-    }
-
-    fun onKeyChange(value: String) {
-        apiKey = value
-        if (value.length in 1..7) toast("That key looks too short. Check it and try again.")
     }
 }

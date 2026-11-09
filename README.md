@@ -4,6 +4,12 @@ An AI design studio for Android — rebuilt, screen for screen, from the `a0` HT
 prototype as a native Kotlin + Jetpack Compose app, with a backend that carries the
 Design Brain and a deterministic anti-AI-slop engine.
 
+**It ships with no content and no model of its own.** There is no demo project, no
+sample usage, no fake catalogue. You add your own provider key (OpenRouter, OpenAI or
+Anthropic); the app verifies it against the provider before storing it, then designs
+for real. Without a key it says so and sends you to the key screen — it never fakes a
+result.
+
 | | |
 |---|---|
 | App | Kotlin 2.0 · Jetpack Compose · Material 3 · minSdk 26 · targetSdk 35 |
@@ -11,6 +17,19 @@ Design Brain and a deterministic anti-AI-slop engine.
 | Design system | Lime + white pastel theme, 3 bundled typefaces, 1:1 tokens from the prototype |
 | Guardrail | 15 deterministic anti-slop checks + 36 hard bans, enforced in code |
 | CI | GitHub Actions → `assembleDebug` → APK artifact (+ release on tag) |
+
+## Start here
+
+1. Open the app → **Settings → API keys**.
+2. Paste an OpenRouter, OpenAI or Anthropic key. It is checked against the provider
+   (a real authenticated request) and only then encrypted into the Android Keystore.
+3. Go to **Studio**, describe the product, and send.
+4. The design lands in **Projects** with a version history; token usage is counted from
+   the `usage` block the provider actually returned.
+
+No key → the Studio shows a card explaining that nothing can be generated, with a
+button to the key screen. Server-side, `POST /api/generate` answers **409** with the
+same message instead of inventing a design.
 
 ## What's inside
 
@@ -77,14 +96,19 @@ pytest -q                          # 6 tests, no network needed
 | `GET /api/brain/{part}` | one part (`PART 0` … `PART 12`) |
 | `POST /api/brain/context` | assembles the exact prompt context for a brief |
 | `POST /api/antislop/check` | the 15 checks → PASS/WARN/FAIL + verdict |
-| `POST /api/generate` | Design Brain context → model (your key) → answer |
+| `POST /api/generate` | Design Brain context → model (your key) → spec JSON · **409 if no key** |
 | `POST /api/review` | deterministic audit + the design-critic prompt |
 | `POST /api/steer` | named one-move fixes (distill, bolder, quieter, …) |
 | `GET /api/skills` | the 9 design-skill documents with licences |
 
-Without a key the server returns a structured **offline design plan** and says so —
-it never invents model output. Set `OPENROUTER_API_KEY` (or `OPENAI_API_KEY` /
-`ANTHROPIC_API_KEY`) to switch generation on. `render.yaml` and `Dockerfile` are included.
+Without a key the server refuses with **409** and a message naming the two ways to
+provide one (Bearer header from the app, or `OPENROUTER_API_KEY` / `OPENAI_API_KEY` /
+`ANTHROPIC_API_KEY` on the server). It never invents model output. `render.yaml` and
+`Dockerfile` are included.
+
+The app has two engines, both real: **Direct** (default — the device calls the provider
+with your key) and **Backend** (set the URL in API keys; the server assembles the full
+Design Brain first).
 
 Point the app at your deployment with one line in
 `android/app/build.gradle.kts` → `A0_BACKEND_URL`.
@@ -101,6 +125,17 @@ gradle assembleDebug          # needs JDK 17 + Android SDK 35
 
 Or let CI do it: push to `main` and download the `a0-design-apk` artifact from the
 workflow run. Push a `v*` tag to attach the APK to a GitHub release.
+
+## What is stored where
+
+| Data | Where |
+|---|---|
+| API keys | Android Keystore, AES/GCM encrypted, never leaves the device |
+| Projects + versions + usage | App-private SharedPreferences (JSON) |
+| Model catalogue | Fetched live from OpenRouter's public `/models` endpoint |
+| Designs | Returned by the model you chose, parsed as a strict JSON spec |
+
+Settings → *Privacy — clear local data* deletes all of it, keys included.
 
 ## Design knowledge
 
