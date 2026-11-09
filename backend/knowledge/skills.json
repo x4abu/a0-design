@@ -1,0 +1,92 @@
+[
+  {
+    "id": "anthropic-frontend-design",
+    "name": "Frontend design",
+    "file": "anthropic-frontend-design.md",
+    "source": "anthropics/skills \u00b7 skills/frontend-design",
+    "license": "Apache-2.0 (per skill)",
+    "url": "https://github.com/anthropics/skills",
+    "kind": "skill",
+    "use": "Aesthetic direction pass before code: subject-grounded plan, then critique."
+  },
+  {
+    "id": "ui-ux-pro-max-pipeline",
+    "name": "Generation pipeline",
+    "file": "ui-ux-pro-max-pipeline.md",
+    "source": "nextlevelbuilder/ui-ux-pro-max-skill",
+    "license": "MIT",
+    "url": "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill",
+    "kind": "skill",
+    "use": "Five-domain search \u2192 reasoning \u2192 fixed output contract. Catalogues, not one prompt."
+  },
+  {
+    "id": "taste-skill-dealing",
+    "name": "Deal, don't describe",
+    "file": "taste-skill-dealing.md",
+    "source": "Leonxlnx/taste-skill",
+    "license": "MIT",
+    "url": "https://github.com/Leonxlnx/taste-skill",
+    "kind": "skill",
+    "use": "Deal from vetted palette/type/layout combos; gate effects by category."
+  },
+  {
+    "id": "impeccable-review-loop",
+    "name": "Review loop & steer commands",
+    "file": "impeccable-review-loop.md",
+    "source": "pbakaus/impeccable",
+    "license": "Apache-2.0",
+    "url": "https://github.com/pbakaus/impeccable",
+    "kind": "skill",
+    "use": "Deterministic detector + named one-move fixes + PRODUCT.md/DESIGN.md."
+  },
+  {
+    "id": "motion-native",
+    "name": "Motion for native UI",
+    "file": "motion-native.md",
+    "source": "emilkowalski/skills",
+    "license": "MIT",
+    "url": "https://github.com/emilkowalski/skills",
+    "kind": "skill",
+    "use": "Duration scale, enter/exit asymmetry, skeletons, reduced motion, stress tests."
+  },
+  {
+    "id": "lovable-prompting",
+    "name": "Prompting like a designer",
+    "file": "lovable-prompting.md",
+    "source": "Lovable public prompting guidance (patterns)",
+    "license": "reference only",
+    "url": "https://docs.lovable.dev",
+    "kind": "knowledge",
+    "use": "Brief with specifics, one change at a time, references in words, lock the system."
+  },
+  {
+    "id": "open-design-penpot",
+    "name": "Open design: tokens as truth",
+    "file": "open-design-penpot.md",
+    "source": "penpot/penpot \u00b7 onlook-dev/onlook",
+    "license": "MPL-2.0 / Apache-2.0",
+    "url": "https://github.com/penpot/penpot",
+    "kind": "knowledge",
+    "use": "Tokens compile to every target; DOM\u2194code visual editing loop."
+  },
+  {
+    "id": "design-md-format",
+    "name": "DESIGN.md format",
+    "file": "design-md-format.md",
+    "source": "Google Stitch origin \u00b7 VoltAgent/awesome-design-md",
+    "license": "MIT",
+    "url": "https://github.com/VoltAgent/awesome-design-md",
+    "kind": "knowledge",
+    "use": "The project handoff format every a0 generation must ship."
+  },
+  {
+    "id": "accessibility-baseline",
+    "name": "Accessibility baseline",
+    "file": "accessibility-baseline.md",
+    "source": "WCAG 2.2 AA \u00b7 Material 3 \u00b7 inclusive-design-skills practice",
+    "license": "reference",
+    "url": "https://www.w3.org/TR/WCAG22/",
+    "kind": "knowledge",
+    "use": "Contrast, targets, scaling, focus, labels \u2014 enforced by the checker."
+  }
+]

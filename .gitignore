@@ -6,6 +6,9 @@ android/app/build/
 android/local.properties
 *.iml
 .idea/
+captures/
+.externalNativeBuild/
+.cxx/
 
 # Python
 __pycache__/

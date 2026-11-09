@@ -1,0 +1,67 @@
+[
+  {
+    "id": "pastel-soft-lime",
+    "name": "Pastel Soft (a0 signature)",
+    "bg": "#F8FBF4",
+    "surface": "#FFFFFF",
+    "ink": "#14171A",
+    "accent": "#7FCF2E",
+    "accent_ink": "#14210A",
+    "display": "Instrument Serif",
+    "body": "DM Sans",
+    "radius": 28,
+    "notes": "Warm off-white canvas, pastel wash on the top third, white cards, pill CTAs."
+  },
+  {
+    "id": "warm-minimal",
+    "name": "Warm Minimal",
+    "bg": "#F6EFE4",
+    "surface": "#FFFFFF",
+    "ink": "#2B2118",
+    "accent": "#C0623B",
+    "accent_ink": "#FBF9F5",
+    "display": "Instrument Serif",
+    "body": "DM Sans",
+    "radius": 26,
+    "notes": "Editorial coffee-shop warmth. Serif display, terracotta accent."
+  },
+  {
+    "id": "quiet-luxury",
+    "name": "Quiet Luxury",
+    "bg": "#F4F2ED",
+    "surface": "#FFFFFF",
+    "ink": "#1B1A17",
+    "accent": "#8A7B5C",
+    "accent_ink": "#FFFFFF",
+    "display": "Instrument Serif",
+    "body": "DM Sans",
+    "radius": 20,
+    "notes": "Low saturation, generous whitespace, hairline rules instead of shadows."
+  },
+  {
+    "id": "soft-brutalist",
+    "name": "Soft Brutalist",
+    "bg": "#EFEFEA",
+    "surface": "#FFFFFF",
+    "ink": "#111111",
+    "accent": "#D6A24A",
+    "accent_ink": "#141414",
+    "display": "Geist Mono",
+    "body": "DM Sans",
+    "radius": 12,
+    "notes": "Hard edges, heavy weight contrast, one warm accent. Never all-caps body."
+  },
+  {
+    "id": "dark-premium",
+    "name": "Warm Dark",
+    "bg": "#1E1916",
+    "surface": "#2C2520",
+    "ink": "#F4ECE3",
+    "accent": "#C6F36A",
+    "accent_ink": "#16240C",
+    "display": "Instrument Serif",
+    "body": "DM Sans",
+    "radius": 24,
+    "notes": "Warm plum-charcoal, never blue-slate or pure black. Accent one step lighter."
+  }
+]

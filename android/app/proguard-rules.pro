@@ -1,0 +1,1 @@
+-keep class design.a0.app.net.** { *; }
