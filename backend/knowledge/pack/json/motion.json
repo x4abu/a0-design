@@ -1,0 +1,173 @@
+{
+  "durations": {
+    "feedback": 120,
+    "micro": 150,
+    "short": 200,
+    "base": 250,
+    "medium": 300,
+    "large": 450,
+    "xlarge": 600,
+    "ceiling": 1000
+  },
+  "easings": {
+    "standard": [
+      0.2,
+      0.8,
+      0.2,
+      1.0
+    ],
+    "settle": [
+      0.32,
+      0.72,
+      0.0,
+      1.0
+    ],
+    "enter": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "exit": [
+      0.3,
+      0.0,
+      1.0,
+      1.0
+    ],
+    "spring": [
+      0.34,
+      1.2,
+      0.5,
+      1.0
+    ],
+    "pop": [
+      0.34,
+      1.4,
+      0.4,
+      1.0
+    ]
+  },
+  "springs": {
+    "settle": {
+      "damping": 0.85,
+      "stiffness": 380
+    },
+    "snappy": {
+      "damping": 0.9,
+      "stiffness": 900
+    },
+    "gentle": {
+      "damping": 1.0,
+      "stiffness": 220
+    },
+    "overshoot": {
+      "damping": 0.55,
+      "stiffness": 600
+    }
+  },
+  "stagger_ms": 50,
+  "recipes": [
+    {
+      "id": "screen-push",
+      "in": {
+        "duration": 420,
+        "easing": "standard",
+        "translate": 14,
+        "scale": 0.985,
+        "blur": 8
+      },
+      "out": {
+        "duration": 220,
+        "easing": "exit",
+        "translate": -10,
+        "scale": 0.99,
+        "blur": 6
+      }
+    },
+    {
+      "id": "sheet",
+      "in": {
+        "duration": 600,
+        "easing": "settle"
+      },
+      "out": {
+        "duration": 300,
+        "easing": "exit"
+      },
+      "scrim": {
+        "alpha": 0.4,
+        "blur": 3
+      }
+    },
+    {
+      "id": "toggle",
+      "knob": {
+        "duration": 450,
+        "spring": "settle"
+      },
+      "track": {
+        "duration": 300
+      }
+    },
+    {
+      "id": "segmented",
+      "thumb": {
+        "duration": 450,
+        "easing": "settle"
+      },
+      "label": {
+        "duration": 200
+      }
+    },
+    {
+      "id": "nav-pill",
+      "expand": {
+        "duration": 450,
+        "easing": "settle"
+      },
+      "labelFade": {
+        "duration": 200,
+        "delay": 80
+      }
+    },
+    {
+      "id": "blur-text",
+      "duration": 520,
+      "blurFrom": 12
+    },
+    {
+      "id": "split-text",
+      "duration": 420,
+      "stagger": 60,
+      "translate": 14
+    },
+    {
+      "id": "typewriter",
+      "msPerChar": 16,
+      "caretBlink": 530
+    },
+    {
+      "id": "success",
+      "duration": 700,
+      "scalePeak": 1.15,
+      "particles": 8
+    },
+    {
+      "id": "shimmer",
+      "duration": 1400,
+      "easing": "linear"
+    },
+    {
+      "id": "card-tilt",
+      "maxDegrees": 8,
+      "cameraDistance": 12
+    },
+    {
+      "id": "scroll-reveal",
+      "duration": 480,
+      "translate": 24,
+      "blurFrom": 6,
+      "threshold": 0.2
+    }
+  ]
+}

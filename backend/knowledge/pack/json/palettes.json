@@ -1,0 +1,144 @@
+{
+  "pastel-soft": {
+    "bg": [
+      "#F8FBF4",
+      "#E7F0DE"
+    ],
+    "surface": "#FFFFFF",
+    "ink": "#14171A",
+    "muted": "#79837C",
+    "accent": "#7FCF2E",
+    "accent2": "#C6F36A",
+    "accentInk": "#14210A",
+    "tints": [
+      [
+        "#F7EFC9",
+        "#F1E3A6"
+      ],
+      [
+        "#E3F6CE",
+        "#CDEEA9"
+      ],
+      [
+        "#FBE3EA",
+        "#F6D0DC"
+      ],
+      [
+        "#ECE7FB",
+        "#DCD4F5"
+      ],
+      [
+        "#DDF2EF",
+        "#C9E8E4"
+      ]
+    ]
+  },
+  "warm-minimal": {
+    "bg": [
+      "#F6EFE4",
+      "#F1E6D6"
+    ],
+    "surface": "#FFFFFF",
+    "ink": "#2B2118",
+    "muted": "#8A7A68",
+    "accent": "#C0623B",
+    "accent2": "#D8B98A",
+    "accentInk": "#FBF9F5",
+    "tints": [
+      [
+        "#E9DCC8",
+        "#DDE2D3"
+      ]
+    ]
+  },
+  "quiet-luxury": {
+    "bg": [
+      "#F4F2ED",
+      "#EDEAE2"
+    ],
+    "surface": "#FFFFFF",
+    "ink": "#1B1A17",
+    "muted": "#8C8880",
+    "accent": "#8A7B5C",
+    "accent2": "#C4B79A",
+    "accentInk": "#FFFFFF",
+    "tints": [
+      [
+        "#EFEADF",
+        "#E3DCCB"
+      ]
+    ]
+  },
+  "soft-brutalist": {
+    "bg": [
+      "#EFEFEA",
+      "#E7E7E1"
+    ],
+    "surface": "#FFFFFF",
+    "ink": "#111111",
+    "muted": "#6F6F6A",
+    "accent": "#D6A24A",
+    "accent2": "#E8C77F",
+    "accentInk": "#141414",
+    "tints": [
+      [
+        "#F3E7CF",
+        "#EAD9B6"
+      ]
+    ]
+  },
+  "warm-dark": {
+    "bg": [
+      "#1E1916",
+      "#171310"
+    ],
+    "surface": "#2C2520",
+    "ink": "#F4ECE3",
+    "muted": "#A59A90",
+    "accent": "#C6F36A",
+    "accent2": "#8FD33A",
+    "accentInk": "#16240C",
+    "tints": [
+      [
+        "#3A322C",
+        "#332C27"
+      ]
+    ]
+  },
+  "sage-bone": {
+    "bg": [
+      "#F3F5EF",
+      "#E8ECE2"
+    ],
+    "surface": "#FFFFFF",
+    "ink": "#20241E",
+    "muted": "#7B8574",
+    "accent": "#6F8F5C",
+    "accent2": "#A8C08E",
+    "accentInk": "#FFFFFF",
+    "tints": [
+      [
+        "#E3EDD8",
+        "#D3E2C4"
+      ]
+    ]
+  },
+  "clay-paper": {
+    "bg": [
+      "#FAF5EF",
+      "#F2E9DF"
+    ],
+    "surface": "#FFFFFF",
+    "ink": "#231C17",
+    "muted": "#8B7C6E",
+    "accent": "#B5654C",
+    "accent2": "#E0B39C",
+    "accentInk": "#FFF7F2",
+    "tints": [
+      [
+        "#F1E2D6",
+        "#E8D2C1"
+      ]
+    ]
+  }
+}

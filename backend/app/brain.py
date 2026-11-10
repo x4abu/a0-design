@@ -132,8 +132,10 @@ def assemble_context(
     screen_block = _screen_block(screens)
     if screen_block:
         blocks.append("# Screen archetypes in scope\n" + screen_block)
+    from . import pack  # local import keeps this module import-safe on its own
     blocks += [
-        "# Motion system\n" + slice_part("PART 8"),
+        "# Motion system (Design Brain Part 8)\n" + slice_part("PART 8"),
+        pack.context_block(),
         "# Output contract\n"
         "End every answer with: (1) the AVOID list naming 3–5 slop patterns you deliberately avoided, "
         "(2) the self-check list from Part 0 §9, (3) a DESIGN.md block with the theme tokens you used.",

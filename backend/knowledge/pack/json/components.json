@@ -1,0 +1,192 @@
+{
+  "navigation": [
+    {
+      "id": "expanding-nav-pill",
+      "source": "a0 / React Bits PillNav",
+      "priority": "P0",
+      "compose": "Row + animated weight + label fade"
+    },
+    {
+      "id": "floating-drawer",
+      "source": "60fps",
+      "priority": "P0",
+      "compose": "AnimatedVisibility + scale-behind"
+    },
+    {
+      "id": "collapsing-large-title",
+      "source": "Mobbin",
+      "priority": "P0",
+      "compose": "scroll offset crossfade"
+    },
+    {
+      "id": "card-nav",
+      "source": "React Bits CardNav",
+      "priority": "P2",
+      "compose": "staggered cards"
+    },
+    {
+      "id": "gooey-indicator",
+      "source": "React Bits GooeyNav",
+      "priority": "P2",
+      "compose": "Canvas path blob"
+    }
+  ],
+  "text": [
+    {
+      "id": "split-entrance",
+      "source": "React Bits SplitText",
+      "priority": "P0",
+      "compose": "per-word AnimatedVisibility + delay"
+    },
+    {
+      "id": "blur-resolve",
+      "source": "React Bits BlurText",
+      "priority": "P0",
+      "compose": "Modifier.blur 12->0"
+    },
+    {
+      "id": "typewriter",
+      "source": "React Bits TextType",
+      "priority": "P0",
+      "compose": "coroutine reveal + caret"
+    },
+    {
+      "id": "number-ticker",
+      "source": "Magic UI NumberTicker",
+      "priority": "P0",
+      "compose": "animateIntAsState"
+    },
+    {
+      "id": "rotating-words",
+      "source": "React Bits RotatingText",
+      "priority": "P1",
+      "compose": "rotationY flip"
+    },
+    {
+      "id": "shiny-sweep",
+      "source": "Magic UI ShinyText",
+      "priority": "P1",
+      "compose": "gradient text brush"
+    },
+    {
+      "id": "split-flap",
+      "source": "React Bits SplitFlapText",
+      "priority": "P2",
+      "compose": "per-digit vertical roll"
+    }
+  ],
+  "controls": [
+    {
+      "id": "spring-toggle",
+      "source": "Uiverse",
+      "priority": "P0",
+      "compose": "animateDpAsState + colour crossfade"
+    },
+    {
+      "id": "segmented-pill",
+      "source": "a0 / Magic UI",
+      "priority": "P0",
+      "compose": "BoxWithConstraints + thumb"
+    },
+    {
+      "id": "glass-toggle",
+      "source": "Vibrant",
+      "priority": "P1",
+      "compose": "gradient track + specular"
+    },
+    {
+      "id": "liquid-glass-button",
+      "source": "21st",
+      "priority": "P1",
+      "compose": "drawWithContent highlight"
+    },
+    {
+      "id": "clamped-slider",
+      "source": "Vibrant",
+      "priority": "P1",
+      "compose": "custom thumb + bubble"
+    },
+    {
+      "id": "option-wheel",
+      "source": "React Bits OptionWheel",
+      "priority": "P2",
+      "compose": "rotating lazy column"
+    }
+  ],
+  "surfaces": [
+    {
+      "id": "glass-card",
+      "source": "a0",
+      "priority": "P0",
+      "compose": "white 82% + white border + ink shadow"
+    },
+    {
+      "id": "bento-grid",
+      "source": "Magic UI",
+      "priority": "P0",
+      "compose": "LazyVerticalGrid spans"
+    },
+    {
+      "id": "progressive-blur-edge",
+      "source": "Magic UI / iOS",
+      "priority": "P0",
+      "compose": "gradient scrim + blur strip"
+    },
+    {
+      "id": "spotlight-card",
+      "source": "React Bits",
+      "priority": "P1",
+      "compose": "radial gradient at pointer"
+    },
+    {
+      "id": "tilt-card",
+      "source": "React Bits",
+      "priority": "P1",
+      "compose": "rotationX/Y <= 8deg"
+    },
+    {
+      "id": "noise-overlay",
+      "source": "Magic UI",
+      "priority": "P2",
+      "compose": "tiled png at 4%"
+    }
+  ],
+  "states": [
+    {
+      "id": "shimmer-skeleton",
+      "source": "Uiverse",
+      "priority": "P0",
+      "compose": "animated linear gradient"
+    },
+    {
+      "id": "success-burst",
+      "source": "60fps",
+      "priority": "P0",
+      "compose": "scale pop + particles"
+    },
+    {
+      "id": "inline-field-error",
+      "source": "Mobbin",
+      "priority": "P0",
+      "compose": "shake + red text"
+    },
+    {
+      "id": "coachmark-pulse",
+      "source": "60fps",
+      "priority": "P1",
+      "compose": "ring scale 1->1.5"
+    },
+    {
+      "id": "undo-snackbar",
+      "source": "Mobbin",
+      "priority": "P1",
+      "compose": "row collapse + snackbar"
+    },
+    {
+      "id": "pull-to-refresh-arc",
+      "source": "60fps",
+      "priority": "P2",
+      "compose": "custom indicator"
+    }
+  ]
+}

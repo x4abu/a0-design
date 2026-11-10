@@ -19,7 +19,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from . import brain, prompts, providers
+from . import brain, pack, prompts, providers
 from .antislop import AuditReport, DesignSpec, audit
 
 KNOWLEDGE_DIR = Path(__file__).resolve().parent.parent / "knowledge"
@@ -235,6 +235,38 @@ def steer(req: SteerRequest) -> dict:
         "rule": "Max two steer commands per round — beyond that, regenerate.",
         "before": audit(req.spec).model_dump() if req.spec else None,
     }
+
+
+# ---------------------------------------------------------------------------
+# Design knowledge pack — 13 reference sites, distilled
+# ---------------------------------------------------------------------------
+@app.get("/api/pack")
+def pack_index() -> dict:
+    items = pack.index()
+    return {"count": len(items), "documents": items}
+
+
+@app.get("/api/pack/motion")
+def pack_motion() -> dict:
+    return {"motion": pack.motion_tokens()}
+
+
+@app.get("/api/pack/palettes")
+def pack_palettes() -> dict:
+    return {"palettes": pack.palettes()}
+
+
+@app.get("/api/pack/components")
+def pack_components() -> dict:
+    return {"components": pack.components()}
+
+
+@app.get("/api/pack/{path:path}")
+def pack_file(path: str) -> dict:
+    body = pack.read(path)
+    if body is None:
+        raise HTTPException(status_code=404, detail=f"No such document: {path}")
+    return {"path": path, "content": body}
 
 
 @app.get("/api/themes")

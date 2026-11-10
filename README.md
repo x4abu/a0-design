@@ -137,6 +137,25 @@ workflow run. Push a `v*` tag to attach the APK to a GitHub release.
 
 Settings → *Privacy — clear local data* deletes all of it, keys included.
 
+## Design knowledge pack (13 sites → one rulebook)
+
+`backend/knowledge/pack/` holds 38 documents distilled from the reference sites the brief
+named: 21st.dev, React Bits, Magic UI, Uiverse, Mobbin, 60fps.design, Land-book, Landdding,
+Recent.design, Godly, MotionSites, FontInLogo, Vibrant.design.
+
+- `motion/` — one token table (120–600ms, spring-driven) plus named recipes for text,
+  toggles, navigation, cards, page transitions, scroll/parallax and loaders, and
+  `compose-recipes.kt` with copy-paste implementations.
+- `colour/` — role-based colour system, seven shippable palettes, and grading recipes.
+- `components/` — the build menu: component → source site → Compose translation → priority.
+- `prompts/` — prompt packs for Android, web app, website and motion-only passes.
+- `json/` — machine-readable `motion.json`, `palettes.json`, `components.json`.
+
+The backend serves it (`GET /api/pack`, `/api/pack/motion`, `/api/pack/palettes`,
+`/api/pack/{path}`) and injects the motion + colour + component contract into every
+generation prompt via `app/pack.py`, so the model cannot invent a 1.2s transition or a
+purple gradient.
+
 ## Design knowledge
 
 `knowledge/design_brain.md` is the full Design Brain (master rules, tokens, 36 bans +

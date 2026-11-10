@@ -109,3 +109,26 @@ def test_generate_without_key_refuses():
     res = client.post("/api/generate", json={"prompt": "a journaling app", "model": "anthropic/claude-sonnet-4"})
     assert res.status_code == 409
     assert "No API key" in res.json()["detail"]
+
+
+def test_pack_is_served_and_used_in_context():
+    index = client.get("/api/pack").json()
+    assert index["count"] >= 35
+    paths = {doc["path"] for doc in index["documents"]}
+    assert "motion/motion-tokens.md" in paths
+    assert "sites/02-reactbits.md" in paths
+
+    tokens = client.get("/api/pack/motion").json()["motion"]
+    assert tokens["durations"]["feedback"] == 120
+    assert tokens["easings"]["settle"] == [0.32, 0.72, 0.0, 1.0]
+
+    palettes = client.get("/api/pack/palettes").json()["palettes"]
+    assert "pastel-soft" in palettes
+
+    doc = client.get("/api/pack/motion/text-animations.md").json()
+    assert "Split entrance" in doc["content"]
+
+    # the motion + colour contract must be inside the assembled prompt
+    ctx = assemble_context("a budgeting app", platform="android")
+    assert "MOTION CONTRACT" in ctx
+    assert "COLOUR CONTRACT" in ctx
