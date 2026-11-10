@@ -137,11 +137,26 @@ workflow run. Push a `v*` tag to attach the APK to a GitHub release.
 
 Settings → *Privacy — clear local data* deletes all of it, keys included.
 
-## Design knowledge pack (13 sites → one rulebook)
+## Design knowledge pack (14 sources → a rulebook + a taste layer)
 
-`backend/knowledge/pack/` holds 38 documents distilled from the reference sites the brief
-named: 21st.dev, React Bits, Magic UI, Uiverse, Mobbin, 60fps.design, Land-book, Landdding,
-Recent.design, Godly, MotionSites, FontInLogo, Vibrant.design.
+`backend/knowledge/pack/` holds 56 documents distilled from the reference sites the brief
+named — 21st.dev, React Bits, Magic UI, Uiverse, Mobbin, 60fps.design, Land-book, Landdding,
+Recent.design, Godly, MotionSites, FontInLogo, Vibrant.design — plus
+[nexu-io/open-design](https://github.com/nexu-io/open-design) (Apache-2.0), whose `craft/`
+docs ground motion rules in primary research.
+
+**v2 adds the taste layer**, because rules alone produce competent-but-forgettable output:
+- `taste/` — eight pass/fail taste tests, hard per-screen restraint budgets, a deterministic
+  hand dealer (`scripts/deal.py`: palette × type × layout × motion × bold move) so projects
+  do not collapse into one house style, composition mechanics, copy voice, and a 0–80
+  critique rubric with named one-move fixes.
+- `craft/` — motion discipline (animate only for space/time/state; 150ms state default;
+  curve for opacity, spring for position; Apple's real spring is response 0.5 / damping
+  0.825), colour pixel budgets (accent ≤2 uses per screen), typography hierarchy vectors,
+  five-state coverage, form validation, UX laws, accessibility, and the seven P0 anti-slop
+  sins as lintable rules.
+- `design-system/` — package contract: `DESIGN.md` template, `manifest.json` with budgets
+  and a11y floors, `tokens.example.css` as the single source of truth.
 
 - `motion/` — one token table (120–600ms, spring-driven) plus named recipes for text,
   toggles, navigation, cards, page transitions, scroll/parallax and loaders, and
@@ -155,6 +170,12 @@ The backend serves it (`GET /api/pack`, `/api/pack/motion`, `/api/pack/palettes`
 `/api/pack/{path}`) and injects the motion + colour + component contract into every
 generation prompt via `app/pack.py`, so the model cannot invent a 1.2s transition or a
 purple gradient.
+
+The taste layer has its own routes and its own contract in the prompt:
+`GET /api/taste/deal?project=<name>&platform=android` (deterministic hand),
+`GET /api/taste/budget`, `GET /api/taste/tests`. `app/taste.py` adds a TASTE CONTRACT block
+to every assembled prompt: deal a hand and justify it, stay inside the budget, run the eight
+tests, score 0–80 before shipping.
 
 ## Design knowledge
 

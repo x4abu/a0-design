@@ -1,0 +1,33 @@
+{
+  "$schema": "https://github.com/x4abu/a0-design/design-system/manifest.schema.json",
+  "name": "<project-slug>",
+  "title": "<Project Name>",
+  "version": "1.0.0",
+  "platforms": ["android"],
+  "design": {
+    "palette": "<palette-id>",
+    "typePairing": "<pairing-id>",
+    "layout": "<archetype>",
+    "motion": ["<motif1>", "<motif2>"],
+    "boldMove": "<move>"
+  },
+  "files": {
+    "design": "DESIGN.md",
+    "tokens": "tokens.css",
+    "tokensJson": "design-tokens.json"
+  },
+  "budgets": {
+    "accentPerScreen": 2,
+    "gradientsPerScreen": 1,
+    "blurSurfacesPerScreen": 1,
+    "radiiPerScreen": 2,
+    "motionEffectsPerScreen": 2,
+    "ambientLoops": 1
+  },
+  "a11y": {
+    "bodyContrast": 4.5,
+    "largeTextContrast": 3,
+    "minTargetDp": 48,
+    "reducedMotion": "strip-transforms-keep-crossfades"
+  }
+}

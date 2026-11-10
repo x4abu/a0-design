@@ -20,6 +20,22 @@ copied into this pack.
 | 12 | fontinlogo.com | Typefaces behind famous brands + free alternatives | Display-vs-body pairing logic, free font shortlist | Reference only |
 | 13 | vibrant.design | Curated sections, shaders and UI shots | Glass toggle, genie frosted menu, clamped slider, mechanical counter | Reference only |
 
+## 14th source — nexu-io/open-design (Apache-2.0)
+https://github.com/nexu-io/open-design — an open, agent-native design workspace and the
+closest open analogue to Claude Code for design work. Its `craft/` folder is the most
+rigorously sourced design-discipline material in the ecosystem: motion rules grounded in
+Tversky/Morrison/Bétrancourt (IJHCS 2002), Harrison/Yeo/Hudson (CHI 2010) and Material 3
+tokens; colour pixel budgets; typography hierarchy vectors; five-state coverage; the seven
+P0 anti-slop sins as lintable rules; and a design-system package contract
+(`manifest.json` + `DESIGN.md` + `tokens.css`).
+
+**What was taken (adapted, not copied):** the motion-discipline reasoning and its corrected
+numbers, the accent/neutral pixel budgets, the five-state requirement and edge matrix, the
+typography hierarchy vectors, the P0 lint list, and the package-contract idea now shipped
+in `design-system/`. **What was left behind:** the daemon/app architecture, the brand
+catalogue of third-party design systems, and its TypeScript schemas (this pack stays
+dependency-free).
+
 ## How it was used
 - **sites/** — one file per source: what it is, what to steal, what to ignore, and the
   Android translation. Written from the live pages, not from memory.

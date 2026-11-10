@@ -1,0 +1,54 @@
+/* a0 tokens — the single source of truth. Components read variables, never hex. */
+:root {
+  /* colour roles */
+  --bg: #F8FBF4;
+  --bg-bottom: #E7F0DE;
+  --surface: #FFFFFF;
+  --surface-glass: rgba(255, 255, 255, 0.82);
+  --ink: #14171A;
+  --ink-soft: #3D4640;
+  --ink-faint: #79837C;
+  --hairline: #E4EADF;
+  --accent: #7FCF2E;
+  --accent-2: #C6F36A;
+  --accent-ink: #14210A;
+  --tint: rgba(127, 207, 46, 0.12);
+  --success: #6BD39B;
+  --warning: #D6A24A;
+  --danger: #B3402E;
+
+  /* radius */
+  --r-card: 28px;
+  --r-field: 20px;
+  --r-tile: 14px;
+  --r-pill: 999px;
+
+  /* spacing (4pt) */
+  --s-1: 4px;  --s-2: 8px;  --s-3: 12px; --s-4: 16px;
+  --s-5: 24px; --s-6: 32px; --s-7: 48px; --s-8: 64px;
+
+  /* type */
+  --font-display: "Instrument Serif", Georgia, serif;
+  --font-ui: "Inter Tight", system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+  --fs-display: 42px; --lh-display: 45px; --tr-display: -0.03em;
+  --fs-title: 34px;   --lh-title: 37px;   --tr-title: -0.04em;
+  --fs-body: 15px;    --lh-body: 23px;
+  --fs-small: 14px;   --lh-small: 20px;
+  --fs-caption: 12px; --lh-caption: 16px;
+
+  /* motion */
+  --d-feedback: 120ms; --d-state: 150ms; --d-short: 200ms;
+  --d-base: 250ms; --d-large: 450ms; --d-sheet: 600ms;
+  --e-standard: cubic-bezier(.2, .8, .2, 1);
+  --e-settle: cubic-bezier(.32, .72, 0, 1);
+  --e-exit: cubic-bezier(.3, 0, 1, 1);
+
+  /* elevation (ink-tinted, never black) */
+  --shadow-1: 0 4px 16px -8px rgba(74, 106, 58, 0.28);
+  --shadow-2: 0 14px 32px -16px rgba(74, 106, 58, 0.40);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --d-feedback: 0ms; --d-state: 0ms; --d-short: 0ms; --d-base: 0ms; --d-large: 0ms; --d-sheet: 0ms; }
+}

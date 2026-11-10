@@ -1,0 +1,73 @@
+{
+  "palettes": [
+    "pastel-soft",
+    "warm-minimal",
+    "quiet-luxury",
+    "soft-brutalist",
+    "warm-dark",
+    "sage-bone",
+    "clay-paper"
+  ],
+  "typePairings": [
+    {
+      "id": "serif-display/sans-ui",
+      "display": "Instrument Serif / Fraunces",
+      "ui": "Inter Tight",
+      "use": "editorial, craft, hospitality, finance-premium"
+    },
+    {
+      "id": "grotesk-display/sans-ui",
+      "display": "Space Grotesk / Schibsted Grotesk",
+      "ui": "Inter Tight",
+      "use": "product, developer tools, modern consumer"
+    },
+    {
+      "id": "mono-display/sans-ui",
+      "display": "Geist Mono / JetBrains Mono",
+      "ui": "Inter Tight",
+      "use": "technical, brutalist, data-heavy"
+    },
+    {
+      "id": "heavy-display/sans-ui",
+      "display": "Poppins ExtraBold / Archivo Black",
+      "ui": "Inter Tight",
+      "use": "campaign, consumer, bold brand"
+    },
+    {
+      "id": "sans-display/serif-ui",
+      "display": "Inter Tight 700 tight",
+      "ui": "Newsreader",
+      "use": "magazine, long-form reading"
+    },
+    {
+      "id": "all-sans-tight",
+      "display": "Inter Tight 700 \u22120.04em",
+      "ui": "Inter Tight",
+      "use": "dense product UI only, never marketing"
+    }
+  ],
+  "layouts": [
+    "big-type hero",
+    "editorial split",
+    "bento features",
+    "stat-led",
+    "phone-in-hero",
+    "poster footer",
+    "quiet list"
+  ],
+  "motionMotifs": [
+    "blur-resolve",
+    "split-entrance",
+    "expanding-nav",
+    "progressive-blur",
+    "card-stack",
+    "count-up"
+  ],
+  "boldMoves": [
+    "oversized headline",
+    "one full-bleed image",
+    "one colour block",
+    "one unusual grid break",
+    "one oversized numeral"
+  ]
+}

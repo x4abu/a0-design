@@ -132,3 +132,32 @@ def test_pack_is_served_and_used_in_context():
     ctx = assemble_context("a budgeting app", platform="android")
     assert "MOTION CONTRACT" in ctx
     assert "COLOUR CONTRACT" in ctx
+
+
+def test_taste_layer():
+    deal = client.get("/api/taste/deal", params={"project": "moss coffee", "platform": "android"}).json()["hand"]
+    assert deal["palette"] in {
+        "pastel-soft", "warm-minimal", "quiet-luxury", "soft-brutalist",
+        "warm-dark", "sage-bone", "clay-paper",
+    }
+    assert len(deal["motion"]) == 2 and deal["motion"][0] != deal["motion"][1]
+    assert deal["bold_move"]
+
+    # deterministic: same project, same hand
+    again = client.get("/api/taste/deal", params={"project": "moss coffee"}).json()["hand"]
+    assert again["palette"] == deal["palette"]
+    # different project, different hand (at least one axis differs)
+    other = client.get("/api/taste/deal", params={"project": "paper budget"}).json()["hand"]
+    assert (other["palette"], other["layout"], other["motion"]) != (
+        deal["palette"], deal["layout"], deal["motion"]
+    )
+
+    budget = client.get("/api/taste/budget").json()["budget"]
+    assert budget["accent_uses_per_screen"] == 2
+
+    tests = client.get("/api/taste/tests").json()
+    assert len(tests["tests"]) == 8
+    assert len(tests["rubric"]) == 8
+
+    ctx = assemble_context("a budgeting app", platform="android")
+    assert "TASTE CONTRACT" in ctx

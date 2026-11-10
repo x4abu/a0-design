@@ -19,7 +19,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from . import brain, pack, prompts, providers
+from . import brain, pack, prompts, providers, taste
 from .antislop import AuditReport, DesignSpec, audit
 
 KNOWLEDGE_DIR = Path(__file__).resolve().parent.parent / "knowledge"
@@ -267,6 +267,26 @@ def pack_file(path: str) -> dict:
     if body is None:
         raise HTTPException(status_code=404, detail=f"No such document: {path}")
     return {"path": path, "content": body}
+
+
+# ---------------------------------------------------------------------------
+# Taste layer — deal a hand, budget, tests
+# ---------------------------------------------------------------------------
+@app.get("/api/taste/deal")
+def taste_deal(project: str, platform: str = "android") -> dict:
+    if not project.strip():
+        raise HTTPException(status_code=422, detail="project is required")
+    return {"hand": taste.deal(project, platform)}
+
+
+@app.get("/api/taste/budget")
+def taste_budget() -> dict:
+    return {"budget": taste.BUDGET, "document": taste.budget_doc()}
+
+
+@app.get("/api/taste/tests")
+def taste_tests() -> dict:
+    return {"tests": taste.TESTS, "rubric": taste.RUBRIC, "document": taste.tests_doc()}
 
 
 @app.get("/api/themes")
