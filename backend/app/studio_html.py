@@ -1,0 +1,920 @@
+"""
+Embedded Web Studio for a0 design.
+Clean, minimal-premium web app served at / and /studio so users can design in real time
+from any browser on mobile or desktop.
+"""
+from __future__ import annotations
+
+STUDIO_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>a0 design &mdash; Real-Time AI Design Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&family=Geist+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0A0A0A;
+    --surface: #141414;
+    --surface-glass: rgba(20, 20, 20, 0.82);
+    --border: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.16);
+    --ink: #FFFFFF;
+    --ink-muted: #8E8E93;
+    --accent: #C7FF2E;
+    --accent-ink: #0A0A0A;
+    --radius-pill: 999px;
+    --radius-card: 20px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+  }
+  header {
+    height: 64px;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--surface-glass);
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .mascot-ball {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #FFFFFF 0%, #C7FF2E 40%, #5F8A00 100%);
+    box-shadow: 0 0 16px rgba(199, 255, 46, 0.4);
+    animation: pulseMascot 4s ease-in-out infinite alternate;
+  }
+  @keyframes pulseMascot {
+    0% { transform: scale(0.96); box-shadow: 0 0 12px rgba(199, 255, 46, 0.3); }
+    100% { transform: scale(1.04); box-shadow: 0 0 22px rgba(199, 255, 46, 0.6); }
+  }
+  .brand-text {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  .brand-sub {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    padding: 3px 8px;
+    background: rgba(199, 255, 46, 0.12);
+    color: var(--accent);
+    border-radius: var(--radius-pill);
+    text-transform: uppercase;
+  }
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .badge-health {
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--accent);
+    background: rgba(199, 255, 46, 0.08);
+    padding: 5px 12px;
+    border-radius: var(--radius-pill);
+    border: 1px solid rgba(199, 255, 46, 0.2);
+  }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 460px 1fr;
+    flex: 1;
+    min-height: calc(100vh - 64px);
+  }
+  @media (max-width: 960px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+
+  .sidebar {
+    padding: 24px;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    background: #0D0D0D;
+    overflow-y: auto;
+  }
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--ink-muted);
+    margin-bottom: 8px;
+  }
+  .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink);
+  }
+  input, select, textarea {
+    width: 100%;
+    background: #171717;
+    border: 1px solid var(--border);
+    color: var(--ink);
+    padding: 12px 14px;
+    border-radius: 12px;
+    font-family: inherit;
+    font-size: 14px;
+    transition: all 0.2s ease;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  .mono { font-family: 'Geist Mono', monospace; font-size: 13px; }
+  .provider-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .prov-btn {
+    background: #171717;
+    border: 1px solid var(--border);
+    color: var(--ink);
+    padding: 8px 6px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s ease;
+  }
+  .prov-btn:hover { background: #222222; }
+  .prov-btn.active {
+    background: rgba(199, 255, 46, 0.15);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .archetypes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .arch-chip {
+    padding: 5px 10px;
+    background: #171717;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .arch-chip:hover { border-color: rgba(255,255,255,0.3); }
+
+  .btn-generate {
+    background: var(--accent);
+    color: var(--accent-ink);
+    border: none;
+    padding: 16px;
+    border-radius: 14px;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: transform 0.1s ease, filter 0.2s ease;
+    box-shadow: 0 4px 20px rgba(199, 255, 46, 0.25);
+  }
+  .btn-generate:hover { filter: brightness(1.05); }
+  .btn-generate:active { transform: scale(0.98); }
+  .btn-generate:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .steer-buttons {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+  .steer-btn {
+    background: #171717;
+    border: 1px solid var(--border);
+    color: var(--ink-muted);
+    padding: 6px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: center;
+  }
+  .steer-btn:hover { color: var(--ink); border-color: rgba(255,255,255,0.2); }
+
+  .preview-area {
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 24px;
+    background: radial-gradient(circle at 50% 0%, #151515 0%, #0A0A0A 80%);
+    overflow-y: auto;
+  }
+
+  .preview-toolbar {
+    width: 100%;
+    max-width: 840px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    background: rgba(25, 25, 25, 0.8);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    backdrop-filter: blur(16px);
+  }
+  .preview-device-switch {
+    display: flex;
+    gap: 4px;
+  }
+  .device-btn {
+    background: transparent;
+    border: none;
+    color: var(--ink-muted);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+  }
+  .device-btn.active {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--ink);
+  }
+
+  .export-btns {
+    display: flex;
+    gap: 8px;
+  }
+  .export-btn {
+    background: #171717;
+    border: 1px solid var(--border);
+    color: var(--ink);
+    padding: 6px 12px;
+    border-radius: var(--radius-pill);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .export-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Device mockups */
+  .device-container {
+    width: 100%;
+    max-width: 400px;
+    transition: all 0.3s ease;
+  }
+  .device-frame {
+    width: 100%;
+    border-radius: 44px;
+    background: #FFFFFF;
+    color: #14171A;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5), 0 0 0 2px rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+    min-height: 720px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    border: 6px solid #222222;
+  }
+  .device-notch {
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    font-size: 12px;
+    font-weight: 600;
+    opacity: 0.6;
+    background: inherit;
+  }
+  .device-tabs {
+    display: flex;
+    gap: 8px;
+    padding: 8px 16px;
+    overflow-x: auto;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+    background: inherit;
+  }
+  .device-tab {
+    padding: 6px 14px;
+    border-radius: var(--radius-pill);
+    border: none;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    background: rgba(0,0,0,0.06);
+    color: inherit;
+  }
+  .device-tab.active {
+    background: #0A0A0A;
+    color: #FFFFFF;
+  }
+  .device-screen {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    flex: 1;
+    overflow-y: auto;
+    background: inherit;
+  }
+
+  .kicker-text {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .headline-text {
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -0.5px;
+    white-space: pre-line;
+  }
+  .hero-box {
+    padding: 18px;
+    border-radius: 20px;
+    border: 1px solid rgba(0,0,0,0.05);
+  }
+  .cta-button {
+    width: 100%;
+    padding: 16px;
+    border-radius: 20px;
+    border: none;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  /* Anti-slop Score Card */
+  .audit-panel {
+    width: 100%;
+    max-width: 840px;
+    background: #141414;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .audit-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .audit-badge {
+    padding: 6px 14px;
+    border-radius: var(--radius-pill);
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .badge-ship { background: rgba(199, 255, 46, 0.15); color: var(--accent); border: 1px solid var(--accent); }
+  .badge-fix { background: rgba(255, 149, 0, 0.15); color: #FF9500; border: 1px solid #FF9500; }
+  .badge-regen { background: rgba(255, 69, 58, 0.15); color: #FF453A; border: 1px solid #FF453A; }
+
+  /* Live Stream Console */
+  .stream-console {
+    width: 100%;
+    max-width: 840px;
+    background: #0B0C0E;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    padding: 16px;
+    display: none;
+  }
+  .stream-console.active { display: block; }
+  .stream-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--ink-muted);
+    margin-bottom: 8px;
+  }
+  .stream-text {
+    font-family: 'Geist Mono', monospace;
+    font-size: 12px;
+    color: #A0C080;
+    max-height: 140px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    line-height: 1.5;
+  }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(8px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 20px;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal-card {
+    background: #141414;
+    border: 1px solid var(--border-strong);
+    border-radius: 24px;
+    width: 100%;
+    max-width: 720px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .modal-head {
+    padding: 18px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-body {
+    padding: 20px 24px;
+    overflow-y: auto;
+    flex: 1;
+  }
+  pre {
+    background: #090909;
+    padding: 16px;
+    border-radius: 14px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 12px;
+    color: #E2E8F0;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    max-height: 480px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="mascot-ball"></div>
+    <span class="brand-text">a0 design studio</span>
+    <span class="brand-sub">Universal AI Engine</span>
+  </div>
+  <div class="header-actions">
+    <div class="badge-health">
+      <span class="dot"></span>
+      <span>Anti-Slop Engine Online</span>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- Left Controls -->
+  <aside class="sidebar">
+    <div class="input-group">
+      <div class="section-title">AI Provider & Model</div>
+      <div class="provider-grid">
+        <button class="prov-btn active" data-prov="gemini" onclick="setProvider('gemini')">Google Gemini</button>
+        <button class="prov-btn" data-prov="groq" onclick="setProvider('groq')">Groq</button>
+        <button class="prov-btn" data-prov="openrouter" onclick="setProvider('openrouter')">OpenRouter</button>
+        <button class="prov-btn" data-prov="openai" onclick="setProvider('openai')">OpenAI</button>
+        <button class="prov-btn" data-prov="anthropic" onclick="setProvider('anthropic')">Anthropic</button>
+        <button class="prov-btn" data-prov="custom" onclick="setProvider('custom')">Custom URL</button>
+      </div>
+    </div>
+
+    <div class="input-group">
+      <label for="apiKeyInput">API Key (stored in your browser only)</label>
+      <input type="password" id="apiKeyInput" class="mono" placeholder="AIzaSy... / gsk_... / sk-...">
+    </div>
+
+    <div class="input-group" id="baseUrlGroup" style="display: none;">
+      <label for="baseUrlInput">Custom Base URL (OpenAI-compatible)</label>
+      <input type="text" id="baseUrlInput" class="mono" placeholder="http://localhost:11434/v1">
+    </div>
+
+    <div class="input-group">
+      <label for="modelSelect">Model</label>
+      <select id="modelSelect" class="mono">
+        <option value="gemini-2.5-flash">gemini-2.5-flash (Fast & Crisp)</option>
+        <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+        <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+        <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile (Groq)</option>
+        <option value="anthropic/claude-3.5-sonnet">claude-3.5-sonnet</option>
+        <option value="gpt-4o">gpt-4o</option>
+      </select>
+    </div>
+
+    <div class="input-group">
+      <div class="section-title">Design Archetype</div>
+      <div class="archetypes">
+        <span class="arch-chip" onclick="fillPrompt('Fintech wealth tracker with minimalist dark obsidian cards and lime accent')">Fintech</span>
+        <span class="arch-chip" onclick="fillPrompt('Coffee subscription app with warm pastel cream theme and editorial serif')">Coffee / Food</span>
+        <span class="arch-chip" onclick="fillPrompt('Productivity habit streak tracker with high-contrast typography')">Habits</span>
+        <span class="arch-chip" onclick="fillPrompt('Minimalist luxury fashion boutique with refined spacing and zero clutter')">Luxury E-Com</span>
+        <span class="arch-chip" onclick="fillPrompt('Autonomous AI dev agents dashboard with live telemetry and logs')">AI Tool</span>
+      </div>
+    </div>
+
+    <div class="input-group">
+      <label for="promptInput">Prompt Brief</label>
+      <textarea id="promptInput" rows="4" placeholder="Describe the app you want to design..."></textarea>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <input type="checkbox" id="streamToggle" checked style="width: auto;">
+      <label for="streamToggle" style="font-size: 13px; cursor: pointer;">Real-time token streaming (SSE)</label>
+    </div>
+
+    <button id="generateBtn" class="btn-generate" onclick="handleGenerate()">
+      <span id="btnIcon">✦</span>
+      <span id="btnLabel">Generate Design</span>
+    </button>
+
+    <div class="input-group">
+      <div class="section-title">Instant Steer Commands</div>
+      <div class="steer-buttons">
+        <button class="steer-btn" onclick="steer('distill')">Distill</button>
+        <button class="steer-btn" onclick="steer('bolder')">Bolder</button>
+        <button class="steer-btn" onclick="steer('quieter')">Quieter</button>
+        <button class="steer-btn" onclick="steer('harden')">Harden</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Right Preview -->
+  <main class="preview-area">
+    <div class="preview-toolbar">
+      <div class="preview-device-switch">
+        <button class="device-btn active" onclick="setDevice('mobile')">Phone</button>
+        <button class="device-btn" onclick="setDevice('tablet')">Tablet</button>
+      </div>
+
+      <div class="export-btns">
+        <button class="export-btn" onclick="showExport('compose')">Kotlin Compose</button>
+        <button class="export-btn" onclick="showExport('react')">React</button>
+        <button class="export-btn" onclick="showExport('flutter')">Flutter</button>
+        <button class="export-btn" onclick="showExport('html')">HTML</button>
+      </div>
+    </div>
+
+    <!-- Live Stream Console -->
+    <div id="streamConsole" class="stream-console">
+      <div class="stream-head">
+        <span>Real-time Stream Console</span>
+        <span id="streamStatus">Receiving tokens...</span>
+      </div>
+      <div id="streamText" class="stream-text"></div>
+    </div>
+
+    <!-- Device Frame Preview -->
+    <div class="device-container" id="deviceContainer">
+      <div class="device-frame" id="deviceFrame">
+        <div class="device-notch">
+          <span>9:41</span>
+          <span>5G · 100%</span>
+        </div>
+        <div class="device-tabs" id="deviceTabs"></div>
+        <div class="device-screen" id="deviceScreen">
+          <!-- Default preview content -->
+          <div style="padding: 20px 0; text-align: center; color: #888;">
+            <div style="font-size: 32px; margin-bottom: 12px;">✦</div>
+            <h3 style="color: #111; font-weight: 700; margin-bottom: 6px;">Ready to create</h3>
+            <p style="font-size: 13px;">Enter your brief and key on the left to stream real-time designs.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Anti-slop Score Card -->
+    <div class="audit-panel" id="auditPanel">
+      <div class="audit-header">
+        <div>
+          <h4 style="font-size: 15px; font-weight: 700;">Deterministic Anti-Slop Audit</h4>
+          <p style="font-size: 12px; color: var(--ink-muted);" id="auditSummary">15 checks passed · 0 banned patterns</p>
+        </div>
+        <div class="audit-badge badge-ship" id="auditVerdict">SHIP</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Modal for code exports -->
+<div class="modal-overlay" id="exportModal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3 id="modalTitle">Export Code</h3>
+      <button onclick="closeModal()" style="background: none; border: none; color: #FFF; font-size: 18px; cursor: pointer;">✕</button>
+    </div>
+    <div class="modal-body">
+      <pre><code id="modalCode"></code></pre>
+    </div>
+    <div style="padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end;">
+      <button class="export-btn" onclick="copyModalCode()">Copy to Clipboard</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentProvider = 'gemini';
+  let currentSpec = null;
+  let activeScreenIdx = 0;
+
+  // Restore saved key
+  const savedKey = localStorage.getItem('a0_api_key_' + currentProvider) || '';
+  if (savedKey) document.getElementById('apiKeyInput').value = savedKey;
+
+  function setProvider(prov) {
+    currentProvider = prov;
+    document.querySelectorAll('.prov-btn').forEach(b => b.classList.toggle('active', b.dataset.prov === prov));
+    document.getElementById('baseUrlGroup').style.display = (prov === 'custom') ? 'flex' : 'none';
+
+    // Model options per provider
+    const select = document.getElementById('modelSelect');
+    select.innerHTML = '';
+    const models = {
+      gemini: ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'],
+      groq: ['llama-3.3-70b-versatile', 'mixtral-8x7b-32768', 'qwen-2.5-coder-32b'],
+      openrouter: ['anthropic/claude-3.5-sonnet', 'google/gemini-2.5-flash', 'openai/gpt-4o', 'meta-llama/llama-3.3-70b-instruct'],
+      openai: ['gpt-4o', 'gpt-4o-mini', 'o3-mini'],
+      anthropic: ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022'],
+      custom: ['default-model']
+    }[prov] || ['default-model'];
+
+    models.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m;
+      opt.textContent = m;
+      select.appendChild(opt);
+    });
+
+    const key = localStorage.getItem('a0_api_key_' + currentProvider) || '';
+    document.getElementById('apiKeyInput').value = key;
+  }
+
+  function fillPrompt(p) {
+    document.getElementById('promptInput').value = p;
+  }
+
+  function setDevice(type) {
+    document.querySelectorAll('.device-btn').forEach(b => b.classList.toggle('active', b.textContent.toLowerCase() === type));
+    const container = document.getElementById('deviceContainer');
+    container.style.maxWidth = (type === 'tablet') ? '680px' : '400px';
+  }
+
+  async function handleGenerate() {
+    const prompt = document.getElementById('promptInput').value.trim();
+    if (!prompt) return alert('Please enter a design brief.');
+
+    const key = document.getElementById('apiKeyInput').value.trim();
+    if (key) localStorage.setItem('a0_api_key_' + currentProvider, key);
+
+    const model = document.getElementById('modelSelect').value;
+    const baseUrl = document.getElementById('baseUrlInput').value.trim();
+    const useStream = document.getElementById('streamToggle').checked;
+
+    const btn = document.getElementById('generateBtn');
+    btn.disabled = true;
+    document.getElementById('btnLabel').textContent = 'Designing...';
+
+    const consoleBox = document.getElementById('streamConsole');
+    const streamText = document.getElementById('streamText');
+    consoleBox.classList.add('active');
+    streamText.textContent = '';
+
+    if (useStream) {
+      try {
+        const response = await fetch('/api/generate/stream', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(key ? { 'Authorization': `Bearer ${key}` } : {})
+          },
+          body: JSON.stringify({
+            prompt,
+            model,
+            provider: currentProvider,
+            base_url: baseUrl,
+            api_key: key
+          })
+        });
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\\n');
+          buffer = lines.pop();
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const dataStr = line.slice(6).trim();
+            if (!dataStr) continue;
+            try {
+              const parsed = JSON.parse(dataStr);
+              if (parsed.event === 'chunk') {
+                streamText.textContent += parsed.delta;
+                streamText.scrollTop = streamText.scrollHeight;
+              } else if (parsed.event === 'design') {
+                currentSpec = parsed.spec;
+                renderDesign(currentSpec);
+              } else if (parsed.event === 'antislop') {
+                renderAudit(parsed.audit);
+              } else if (parsed.event === 'status') {
+                document.getElementById('streamStatus').textContent = parsed.message;
+              }
+            } catch (e) {}
+          }
+        }
+      } catch (err) {
+        alert('Generation failed: ' + err.message);
+      }
+    } else {
+      try {
+        const response = await fetch('/api/generate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(key ? { 'Authorization': `Bearer ${key}` } : {})
+          },
+          body: JSON.stringify({
+            prompt,
+            model,
+            provider: currentProvider,
+            base_url: baseUrl,
+            api_key: key
+          })
+        });
+        const data = await response.json();
+        if (data.spec) {
+          currentSpec = data.spec;
+          renderDesign(currentSpec);
+        }
+        if (data.antislop) renderAudit(data.antislop);
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
+    btn.disabled = false;
+    document.getElementById('btnLabel').textContent = 'Generate Design';
+  }
+
+  function renderDesign(spec) {
+    if (!spec) return;
+    const theme = spec.theme || {};
+    const frame = document.getElementById('deviceFrame');
+    frame.style.backgroundColor = theme.surface || '#FFFFFF';
+    frame.style.color = theme.ink || '#14171A';
+
+    const tabs = document.getElementById('deviceTabs');
+    const screens = spec.screens || [];
+    tabs.innerHTML = screens.map((s, i) => `
+      <button class="device-tab ${i === activeScreenIdx ? 'active' : ''}" onclick="switchScreen(${i})">
+        ${s.title || 'Screen'}
+      </button>
+    `).join('');
+
+    renderScreenContent(screens[activeScreenIdx] || screens[0], theme);
+  }
+
+  function switchScreen(idx) {
+    activeScreenIdx = idx;
+    if (currentSpec) renderDesign(currentSpec);
+  }
+
+  function renderScreenContent(screen, theme) {
+    const el = document.getElementById('deviceScreen');
+    if (!screen || !screen.blocks) return;
+
+    el.innerHTML = screen.blocks.map(b => {
+      if (b.type === 'sub') {
+        return `<div class="kicker-text" style="color: ${theme.accent || '#C7FF2E'}">${b.text}</div>`;
+      }
+      if (b.type === 'headline') {
+        return `<div class="headline-text">${b.text}</div>`;
+      }
+      if (b.type === 'hero') {
+        return `
+          <div class="hero-box" style="background: ${theme.bg || '#F8FBF4'}">
+            <h4 style="font-weight: 700; font-size: 17px; margin-bottom: 4px;">${b.title}</h4>
+            <p style="font-size: 13px; opacity: 0.7;">${b.meta || ''}</p>
+          </div>`;
+      }
+      if (b.type === 'button') {
+        return `<button class="cta-button" style="background: ${theme.accent || '#C7FF2E'}; color: ${theme.ink || '#0A0A0A'}">${b.text}</button>`;
+      }
+      if (b.type === 'stat') {
+        return `
+          <div style="background: ${theme.accent || '#C7FF2E'}20; padding: 16px; border-radius: 20px;">
+            <div style="font-size: 36px; font-weight: 800;">${b.text}</div>
+            <div style="font-size: 13px; opacity: 0.75;">${b.meta || ''}</div>
+          </div>`;
+      }
+      if (b.type === 'cards') {
+        return `
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            ${(b.items || []).map(it => `
+              <div style="background: ${theme.bg || '#F8FBF4'}; padding: 12px 16px; border-radius: 14px;">
+                <div style="font-weight: 600; font-size: 14px;">${it.title}</div>
+                <div style="font-size: 12px; opacity: 0.65;">${it.meta || ''}</div>
+              </div>
+            `).join('')}
+          </div>`;
+      }
+      if (b.type === 'rows') {
+        return `
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            ${(b.items || []).map(it => `
+              <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0;">
+                <div>
+                  <div style="font-weight: 600; font-size: 14px;">${it.title}</div>
+                  <div style="font-size: 12px; opacity: 0.6;">${it.meta || ''}</div>
+                </div>
+                <span style="font-weight: 700; color: ${theme.accent || '#C7FF2E'}">${it.trail || ''}</span>
+              </div>
+            `).join('')}
+          </div>`;
+      }
+      return '';
+    }).join('');
+  }
+
+  function renderAudit(report) {
+    if (!report) return;
+    const verdict = document.getElementById('auditVerdict');
+    verdict.textContent = report.verdict || 'SHIP';
+    verdict.className = 'audit-badge ' + (
+      report.verdict === 'SHIP' ? 'badge-ship' : (report.verdict === 'FIX-FIRST' ? 'badge-fix' : 'badge-regen')
+    );
+    document.getElementById('auditSummary').textContent =
+      `${report.score}/${report.max_score} score · ${report.results?.length || 15} checks run · ${report.banned_hits?.length || 0} banned patterns`;
+  }
+
+  async function showExport(format) {
+    if (!currentSpec) return alert('Please generate a design first.');
+    const res = await fetch('/api/export', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ spec: currentSpec, format })
+    });
+    const data = await res.json();
+    document.getElementById('modalTitle').textContent = `Export: ${format.toUpperCase()}`;
+    document.getElementById('modalCode').textContent = data.code || JSON.stringify(data, null, 2);
+    document.getElementById('exportModal').classList.add('active');
+  }
+
+  function closeModal() {
+    document.getElementById('exportModal').classList.remove('active');
+  }
+
+  function copyModalCode() {
+    const code = document.getElementById('modalCode').textContent;
+    navigator.clipboard.writeText(code);
+    alert('Code copied to clipboard!');
+  }
+</script>
+</body>
+</html>
+"""

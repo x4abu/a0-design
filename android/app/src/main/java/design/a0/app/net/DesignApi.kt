@@ -49,6 +49,7 @@ object DesignApi {
                 put("model", model)
                 put("mode", "Auto")
                 put("platform", "android")
+                put("api_key", key)
             }.toString().toRequestBody(mediaType)
 
             val req = Request.Builder()

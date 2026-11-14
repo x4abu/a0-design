@@ -10,12 +10,28 @@ android {
     compileSdk = 35
     buildToolsVersion = "35.0.0"
 
+    val runNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull()
+    val commitCount = runCatching {
+        val p = ProcessBuilder("git", "rev-list", "--count", "HEAD").redirectErrorStream(true).start()
+        p.inputStream.bufferedReader().readText().trim().toIntOrNull()
+    }.getOrNull() ?: 20
+    val computedVersionCode = 100 + (runNumber ?: commitCount)
+
+    signingConfigs {
+        create("appSigning") {
+            storeFile = file("${project.rootDir}/keystore/debug.keystore")
+            storePassword = "androiddebugkey"
+            keyAlias = "androiddebugkey"
+            keyPassword = "androiddebugkey"
+        }
+    }
+
     defaultConfig {
         applicationId = "design.a0.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1.0"
+        versionCode = computedVersionCode
+        versionName = "1.2.${runNumber ?: commitCount}"
         vectorDrawables { useSupportLibrary = true }
         // Point this at your deployed backend. Empty = app runs fully offline
         // (local design engine) and only uses the backend when reachable.
@@ -26,9 +42,11 @@ android {
         debug {
             applicationIdSuffix = ""
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("appSigning")
         }
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("appSigning")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }

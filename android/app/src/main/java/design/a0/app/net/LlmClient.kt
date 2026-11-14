@@ -120,6 +120,35 @@ object LlmClient {
                     }
                 }.getOrElse { Result.Err(0, it.message ?: "Network error") }
             }
+            "Google Gemini", "Gemini" -> {
+                gemini(key, "gemini-2.5-flash", "Reply with OK.", "OK?", 4)
+            }
+            "Groq" -> {
+                val req = Request.Builder()
+                    .url("https://api.groq.com/openai/v1/models")
+                    .header("Authorization", "Bearer $key")
+                    .get().build()
+                runCatching {
+                    http.newCall(req).execute().use { res ->
+                        val body = res.body?.string()
+                        if (res.isSuccessful) Result.Ok("ok", Usage(0, 0, 0.0))
+                        else Result.Err(res.code, errText(body, res.code))
+                    }
+                }.getOrElse { Result.Err(0, it.message ?: "Network error") }
+            }
+            "DeepSeek" -> {
+                val req = Request.Builder()
+                    .url("https://api.deepseek.com/models")
+                    .header("Authorization", "Bearer $key")
+                    .get().build()
+                runCatching {
+                    http.newCall(req).execute().use { res ->
+                        val body = res.body?.string()
+                        if (res.isSuccessful) Result.Ok("ok", Usage(0, 0, 0.0))
+                        else Result.Err(res.code, errText(body, res.code))
+                    }
+                }.getOrElse { Result.Err(0, it.message ?: "Network error") }
+            }
             "OpenAI" -> openAiModels(key).let {
                 when (it) {
                     is Result.Ok -> Result.Ok("ok", Usage(0, 0, 0.0))
@@ -150,6 +179,9 @@ object LlmClient {
         maxTokens: Int = 2600
     ): Result = withContext(Dispatchers.IO) {
         when (provider) {
+            "Google Gemini", "Gemini" -> gemini(key, model, system, prompt, maxTokens)
+            "Groq" -> groq(key, model, system, prompt, maxTokens)
+            "DeepSeek" -> deepseek(key, model, system, prompt, maxTokens)
             "Anthropic" -> anthropic(key, model, system, prompt, maxTokens)
             "OpenAI" -> openAi(key, model, system, prompt, maxTokens)
             else -> openRouter(key, model, system, prompt, maxTokens)
@@ -166,6 +198,56 @@ object LlmClient {
                 else parseChat(text ?: "", "openai")
             }
         }.getOrElse { Result.Err(0, it.message ?: "Network error") }
+
+    private fun gemini(key: String, model: String, system: String, prompt: String, maxTokens: Int): Result {
+        val resolvedModel = if (model.contains("gemini")) model else "gemini-2.5-flash"
+        val body = buildJsonObject {
+            put("model", resolvedModel)
+            put("max_tokens", maxTokens)
+            put("messages", buildJsonArray {
+                add(buildJsonObject { put("role", "system"); put("content", system) })
+                add(buildJsonObject { put("role", "user"); put("content", prompt) })
+            })
+        }.toString()
+        return post(
+            "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+            mapOf("Authorization" to "Bearer $key"),
+            body
+        )
+    }
+
+    private fun groq(key: String, model: String, system: String, prompt: String, maxTokens: Int): Result {
+        val resolvedModel = if (model.contains("llama") || model.contains("mixtral")) model else "llama-3.3-70b-versatile"
+        val body = buildJsonObject {
+            put("model", resolvedModel)
+            put("max_tokens", maxTokens)
+            put("messages", buildJsonArray {
+                add(buildJsonObject { put("role", "system"); put("content", system) })
+                add(buildJsonObject { put("role", "user"); put("content", prompt) })
+            })
+        }.toString()
+        return post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            mapOf("Authorization" to "Bearer $key"),
+            body
+        )
+    }
+
+    private fun deepseek(key: String, model: String, system: String, prompt: String, maxTokens: Int): Result {
+        val body = buildJsonObject {
+            put("model", "deepseek-chat")
+            put("max_tokens", maxTokens)
+            put("messages", buildJsonArray {
+                add(buildJsonObject { put("role", "system"); put("content", system) })
+                add(buildJsonObject { put("role", "user"); put("content", prompt) })
+            })
+        }.toString()
+        return post(
+            "https://api.deepseek.com/v1/chat/completions",
+            mapOf("Authorization" to "Bearer $key"),
+            body
+        )
+    }
 
     private fun openRouter(key: String, model: String, system: String, prompt: String, maxTokens: Int): Result {
         val body = buildJsonObject {

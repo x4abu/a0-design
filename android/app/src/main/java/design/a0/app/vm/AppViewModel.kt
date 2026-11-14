@@ -57,7 +57,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var settings by mutableStateOf(store.settings)
         private set
 
-    val providers = listOf("OpenRouter", "OpenAI", "Anthropic")
+    val providers = listOf("Google Gemini", "Groq", "OpenRouter", "OpenAI", "Anthropic", "DeepSeek")
 
     // ---- keys -----------------------------------------------------------
     var keyProvider by mutableStateOf(store.settings.provider)
